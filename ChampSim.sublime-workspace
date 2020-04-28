@@ -1,0 +1,291 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"TPDS",
+				"TPDS2015\t(TPDS2015.md)"
+			],
+			[
+				"ISPA2013",
+				"ISPA2013-zhang\t(ISPA2013-zhang.md)"
+			],
+			[
+				"ISLPED",
+				"ISLPED2013\t(ISLPED2013.md)"
+			],
+			[
+				"PACT",
+				"PACT2014\t(PACT2014.md)"
+			],
+			[
+				"IGSC",
+				"IGSC2016\t(IGSC2016.md)"
+			],
+			[
+				"ICCD",
+				"ICCD2017\t(ICCD2017.md)"
+			],
+			[
+				"BIBM",
+				"BIBM2019\tabc"
+			],
+			[
+				"appr",
+				"approach\t(cache_impl.hh)"
+			],
+			[
+				"finis",
+				"finishTranslation"
+			],
+			[
+				"Full",
+				"FullO3CPU"
+			],
+			[
+				"isRe",
+				"isRead\t(packet.hh)"
+			],
+			[
+				"getP",
+				"getPC"
+			],
+			[
+				"tot",
+				"totalInsts"
+			],
+			[
+				"data",
+				"data_pkt"
+			],
+			[
+				"out",
+				"output_file_name"
+			]
+		]
+	},
+	"buffers":
+	[
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"install",
+				"Package Control: Install Package"
+			],
+			[
+				"Package Control: add",
+				"Package Control: Advanced Install Package"
+			],
+			[
+				"package co",
+				"Preferences: Browse Packages"
+			]
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 136.0,
+		"history":
+		[
+			"import urllib.request,os,hashlib; h = '6f4c264a24d933ce70df5dedcf1dcaee' + 'ebe013ee18cced0ef93d5f746d80ef60'; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); by = urllib.request.urlopen( 'http://packagecontrol.io/' + pf.replace(' ', '%20')).read(); dh = hashlib.sha256(by).hexdigest(); print('Error validating download (got %s instead of %s), please try manual install' % (dh, h)) if dh != h else open(os.path.join( ipp, pf), 'wb' ).write(by)",
+			"import urllib.request,os; pf = 'Package Control.sublime-package'; ipp = sublime.installed_packages_path(); urllib.request.install_opener( urllib.request.build_opener( urllib.request.ProxyHandler()) ); open(os.path.join(ipp, pf), 'wb').write(urllib.request.urlopen( 'http://sublime.wbond.net/' + pf.replace(' ','%20')).read())"
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/ChampSim"
+	],
+	"file_history":
+	[
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/CRAD2019.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_pages/about.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/HPCA2017.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/TPDS2015.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/TC2019.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/TCAD2019.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/IPDPSW2012.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/ISPA2013-zhang.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/ISPA2013-shuai.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/NAS2013.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/ISLPED2013.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_pages/cv.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_pages/services.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_pages/service.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/PACT2014.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/IGSC2016.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/ICCD2017.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/DAC2019.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/BIBM2018.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/HPCC2019.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/PACT2019.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/ICCD2019-zhang.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/ICCD2019-lin.md",
+		"/Users/smartzmz/work/personal_web/mingzhe-zhang.github.io/_publications/ISPA2019.md",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/run_micro.sh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/arch/arm/insts/macromem.cc",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/base/cprintf.hh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/configs/example/spec.py",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/build_opts/ALPHA",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/configs/common/Options.py",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/configs/common/CpuConfig.py",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/base/misc.hh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/configs/common/Simulation.py",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/try.txt",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/mem/port.hh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/cpu/o3/lsq_unit_impl.hh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/cpu/o3/lsq_unit.hh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/mem/port.cc",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/mem/request.hh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/cpu/base.hh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/base/types.hh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/mem/abstract_mem.cc",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/run_single_hpca.sh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/run_multiple_1.sh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/mem/packet.hh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/src/cpu/o3/fetch_impl.hh",
+		"/Users/smartzmz/work/research_project/co-operate-project/anshuqian/mosaic-cache/workspace/mosaic-cache-gem5/gem5_nvmain2_zmz/gem5-stable/run_all.sh",
+		"/Users/smartzmz/Downloads/cpts_1012_bon/index.html",
+		"/Users/smartzmz/work/test.html"
+	],
+	"find":
+	{
+		"height": 26.0
+	},
+	"find_in_files":
+	{
+		"height": 101.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"sheets":
+			[
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 26.0
+	},
+	"input":
+	{
+		"height": 38.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "ChampSim.sublime-project",
+	"replace":
+	{
+		"height": 48.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 273.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
