@@ -1,10 +1,14 @@
 #include "lpm.h"
+LPM::LPM()
+{
+	// WARNING: THIS FUNCTION REQUIRES init_LPM().
+}
 
-LPM::LPM(int total_cache_level, float delta, uint64_t window_width)
+LPM::LPM(int total_cache_level, float delta, uint64_t new_window_width)
 {
 	cache_level_count = total_cache_level;
 	ratio_memory_compute = delta;
-	window_width = window_width;
+	window_width = new_window_width;
 
 	pure_miss_cycle = new int[cache_level_count];
 	mix_cycle = new int[cache_level_count];
@@ -29,19 +33,34 @@ LPM::LPM(int total_cache_level, float delta, uint64_t window_width)
 
 LPM::~LPM()
 {
-	delete []pure_miss_cycle;
-	delete []mix_cycle;
-	delete []pure_hit_cycle;
-	delete []active_cycle;
-	delete []ratio_miss_cycle_active_cycle;
-	delete []ratio_pure_miss_cycle_all_miss_cycle;
-	delete []lpmr;
-	delete []need_update;
-	for(int i = 0; i < cache_level_count; i++)
+	_destroy_lpm();
+}
+
+void LPM::init_LPM(int total_cache_level, float delta, uint64_t new_window_width)
+{
+	cache_level_count = total_cache_level;
+	ratio_memory_compute = delta;
+	window_width = new_window_width;
+
+	pure_miss_cycle = new int[cache_level_count];
+	mix_cycle = new int[cache_level_count];
+	pure_hit_cycle = new int[cache_level_count];
+	active_cycle = new int[cache_level_count];
+	ratio_miss_cycle_active_cycle = new float[cache_level_count];
+	ratio_pure_miss_cycle_all_miss_cycle = new float[cache_level_count];
+
+	lpmr = new float[cache_level_count];
+
+	need_update = new bool[cache_level_count];
+
+	cycle_stat = new struct cycle_stat_t*[cache_level_count];
+
+	for (int i = 0; i < cache_level_count; i++)
 	{
-		delete []cycle_stat[i];
+		cycle_stat[i] = new struct cycle_stat_t[window_width];
 	}
-	delete []cycle_stat;
+
+	reset(0);
 }
 
 void LPM::reset(uint64_t new_start_cycle)
@@ -51,7 +70,7 @@ void LPM::reset(uint64_t new_start_cycle)
 	f_mem = 0;
 	access_count = 0;
 
-	windown_start_cycle = new_start_cycle;
+	window_start_cycle = new_start_cycle;
 
 	for(int idx=0; idx<cache_level_count; idx++) 
 	{
@@ -108,7 +127,7 @@ bool LPM::update_lpmr(int cache_level)
 	ratio_miss_cycle_active_cycle[cache_level]
 		= (float)(pure_miss_cycle[cache_level] + mix_cycle[cache_level])
 		/ ((float)active_cycle[cache_level]);
-	ratio_pure_miss_cycle_all_miss_cycle 
+	ratio_pure_miss_cycle_all_miss_cycle[cache_level]
 		= ((float)pure_miss_cycle[cache_level])
 		/ (float)(pure_miss_cycle[cache_level] + mix_cycle[cache_level]);
 
@@ -159,7 +178,7 @@ bool LPM::access_reg(int cache_level, uint64_t start_cycle, uint64_t cycle_count
 		return false;
 	}
 
-	if(start_cycle < windown_start_cycle)
+	if(start_cycle < window_start_cycle)
 	{
 		return false;
 	}
@@ -169,10 +188,10 @@ bool LPM::access_reg(int cache_level, uint64_t start_cycle, uint64_t cycle_count
 		return false;
 	}
 
-	uint64_t start_cycle_idx = start_cycle - windown_start_cycle;
+	uint64_t start_cycle_idx = start_cycle - window_start_cycle;
 	uint64_t end_cycle_idx = ((start_cycle_idx + cycle_count) < window_width) ? cycle_count : window_width;
 
-	for(uint64_t cycle_idx = startcycle_idx; cycle_idx < end_cycle_idx; ++cycle_idx)
+	for(uint64_t cycle_idx = start_cycle_idx; cycle_idx < end_cycle_idx; ++cycle_idx)
 	{
 		if(type == LPM_HIT_ACCESS)
 		{
@@ -188,9 +207,9 @@ bool LPM::access_reg(int cache_level, uint64_t start_cycle, uint64_t cycle_count
 	return true;
 }
 
-float LPM::get_lpmr(int cache level)
+float LPM::get_lpmr(int cache_level)
 {
-	if(!(cache_level< cache_level_count))
+	if(!(cache_level < cache_level_count))
 	{
 		return 0; // fault
 	}
@@ -199,4 +218,21 @@ float LPM::get_lpmr(int cache level)
 		update_lpmr(cache_level);
 	}
 	return lpmr[cache_level];
+}
+
+void LPM::_destroy_lpm()
+{
+	delete []pure_miss_cycle;
+	delete []mix_cycle;
+	delete []pure_hit_cycle;
+	delete []active_cycle;
+	delete []ratio_miss_cycle_active_cycle;
+	delete []ratio_pure_miss_cycle_all_miss_cycle;
+	delete []lpmr;
+	delete []need_update;
+	for(int i = 0; i < cache_level_count; i++)
+	{
+		delete []cycle_stat[i];
+	}
+	delete []cycle_stat;
 }

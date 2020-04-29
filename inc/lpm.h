@@ -20,15 +20,18 @@ struct cycle_stat_t
 class LPM
 {
 public:
-	LPM(int total_cache_level, float delta, uint64_t window_width);
+	LPM();
+	LPM(int total_cache_level, float delta, uint64_t new_window_width);
 	~LPM();
 
+	void init_LPM(int total_cache_level, float delta, uint64_t new_window_width);
 	void reset(uint64_t new_start_cycle);
 	bool update_lpmr(int cache_level);
 	bool check_perf_match(int cache_level);
 	bool access_reg(int cache_level, uint64_t start_cycle, uint64_t cycle_count, bool type);
 	float get_lpmr(int cache_level);
 
+	void set_delta(float delta){ratio_memory_compute = delta;};
 
 private:
 	int cache_level_count; 
@@ -52,6 +55,8 @@ private:
 	uint64_t window_width;
 
 	struct cycle_stat_t** cycle_stat; 
+
+	void _destroy_lpm(); // WARNING: THIS FUNCTION WILL DELETE ALL DATA IN LPM.
 };
 
 #endif
