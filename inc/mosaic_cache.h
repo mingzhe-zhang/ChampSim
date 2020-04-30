@@ -5,6 +5,8 @@
 
 struct mosaic_cache_info_t
 {
+	bool need_set;
+	bool need_init;
 	int origin_way_num;
 	int current_way_start_pos;
 	int current_way_end_pos;
@@ -18,15 +20,15 @@ struct mosaic_cache_info_t
 class Mosaic_Cache
 {
 public:
-	Mosaic_Cache(int new_core_num, int new_cache_level_count, int l1_way, int l2_way, 
-				 int l3_way, int new_l1_l2_ratio, int new_l2_l3_ratio,
-				 float new_delta, uint64_t new_check_period);
+	Mosaic_Cache(int new_core_num, int cache_level_count, float new_delta, uint64_t new_check_period);
 	~Mosaic_Cache();
 
 	bool set_work_mode(int new_mode);
 	bool set_writeback_mode(int new_mode);
 
+	bool set_mosaic_cache_info(int cache_level, int way_num, int adaptive_way_num, int ratio, int reconfig_threshold);
 	bool set_adaptive_way_num(int cache_level, int new_adaptive_way_num);
+	bool init_mosaic_cache();
 
 	int get_current_way_num(int cache_level);
 	int get_current_way_start_pos(int cache_level);
@@ -52,32 +54,10 @@ private:
 
 	// cache configuration
 	int cache_level_count;
-	// int origin_l1_way_num;
-	// int origin_l2_way_num;
-	// int origin_l3_way_num;
-	// int l1_l2_ratio;
-	// int l2_l3_ratio;
-
-	// // mosaic cache information
-	// int current_l1_way_num;
-	// int current_l2_way_num;
-	// int current_l3_way_num;
-
-	// int current_l1_way_end_pos;
-	// int current_l2_way_start_pos;
-	// int current_l2_way_end_pos;
-	// int current_l3_way_end_pos;
-
-	// int adaptive_way_l2;
-	// int adaptive_way_l3;
 
 	uint64_t last_check_cycle;
 
 	struct mosaic_cache_info_t *mosaic_cache_info;
-
-	// int reconfig_threshold_l1;
-	// int reconfig_threshold_l2;
-	// int reconfig_threshold_l3;
 
 	// mosaic cache configuration
 	
@@ -96,6 +76,11 @@ private:
 					// 4: for l1-l2-l3
 
 	int writeback_mode;	// 0: directly writeback, 1: non-writeback
+
+	bool _reconfig_l1_to_l2();
+	bool _reconfig_l2_to_l1();
+	bool _reconfig_l2_to_l3();
+	bool _reconfig_l3_to_l2();
 };
 
 #endif
