@@ -27,12 +27,36 @@ Mosaic_Cache::Mosaic_Cache(int new_core_num, int new_cache_level_count, float ne
 	{
 		lpm_monitor[idx].init_LPM(cache_level_count, target_delta, check_period);
 	}
+
+	// init statistics
+	_writeback_counter = new int*[core_num];
+	for(int core_idx = 0; core_idx < core_num; ++core_idx)
+	{
+		_writeback_counter[core_idx] = new int[3];
+		for(int i = 0; i < 3; ++i)
+		{
+			_writeback_counter[core_idx][i] = 0;
+		}
+	}
+	_total_writeback_counter = 0;
+	_l1_to_l2_counter = 0;
+	_l2_to_l1_counter = 0;
+	_l2_to_l3_counter = 0;
+	_l3_to_l2_counter = 0;
 }
 
 Mosaic_Cache::~Mosaic_Cache()
 {
+	// output statistics
+	print_statistics();
+
 	delete[] lpm_monitor;
 	delete[] mosaic_cache_info;
+	for(int core_idx = 0; core_idx < core_num; core_idx++)
+	{
+		delete[] _writeback_counter[core_idx];
+	}
+	delete[] _writeback_counter;
 }
 
 bool Mosaic_Cache::set_work_mode(int new_mode)
@@ -286,22 +310,33 @@ bool Mosaic_Cache::reconfig(uint64_t current_cycle)
 	}
 	else if(work_mode == 4) // L1-L2-L3
 	{
-		int vote = 0;
+		int vote_l1 = 0;
+		int vote_l2 = 0;
+		int vote_l3 = 0;
 		// L2 first
 		for(int core_idx = 0; core_idx < core_num; core_idx++)
 		{
+			if(!lpm_monitor[core_idx].check_perf_match(LPM_L1))
+			{
+				vote_l1++;
+			}
 			if(!lpm_monitor[core_idx].check_perf_match(LPM_L2))
 			{
-				vote++;
+				vote_l2++;
+			}
+			if(!lpm_monitor[core_idx].check_perf_match(LPM_L3))
+			{
+				vote_l3++;
 			}
 		}
-		if(vote >= mosaic_cache_info[LPM_L2].reconfig_threshold)
+
+		if(vote_l2 >= mosaic_cache_info[LPM_L2].reconfig_threshold)
 		{
 			if(_reconfig_l3_to_l2())
 			{
 				return true;
 			}
-			else if(lpm_monitor[core_idx].check_perf_match(LPM_L1))
+			else if(vote_l1 < mosaic_cache_info[LPM_L1].reconfig_threshold)
 			{
 				if(_reconfig_l1_to_l2())
 				{
@@ -316,6 +351,32 @@ bool Mosaic_Cache::reconfig(uint64_t current_cycle)
 			{
 				return false;
 			}
+		}
+		else if(vote_l1 >= mosaic_cache_info[LPM_L1].reconfig_threshold)
+		{
+			if(_reconfig_l2_to_l1())
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else if(vote_l3 >= mosaic_cache_info[LPM_L3].reconfig_threshold)
+		{
+			if(_reconfig_l2_to_l3())
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			return false;
 		}
 		
 	}
@@ -350,6 +411,32 @@ float Mosaic_Cache::get_lpmr(int core_id, int cache_level)
 	}
 
 	return lpm_monitor[core_id].get_lpmr(cache_level);
+}
+
+void Mosaic_Cache::add_writeback(int core_id, int cache_level, int writeback_count)
+{
+	_writeback_counter[core_id][cache_level] += writeback_count;
+	_total_writeback_counter += writeback_count;
+}
+
+void Mosaic_Cache::print_statistics()
+{
+	cout<<"====MOSAIC_CACHE_STAT_BEGIN===="<<endl;
+	cout<<"TOTAL WRITEBACK: "<<_total_writeback_counter<<endl;
+	for(int core_idx = 0; core_idx < core_num; core_idx++)
+	{
+		cout<<"-- Core ["<<core_idx<<"]"<<endl;
+		for(int i = 0; i < 3; i++)
+		{
+			cout<<"---- Cache L"<<(i+1)<<": "<<_writeback_counter[core_idx][i]<<endl;
+		}
+	}
+	cout<<"TOTAL CACHE RECONFIG: "<<_total_reconfig_counter<<endl;
+	cout<<"-- L1 to L2: "<<_l1_to_l2_counter<<endl;
+	cout<<"-- L2 to L1: "<<_l2_to_l1_counter<<endl;
+	cout<<"-- L2 to L3: "<<_l2_to_l3_counter<<endl;
+	cout<<"-- L3 to L2: "<<_l3_to_l2_counter<<endl;
+	cout<<"====MOSAIC_CACHE_STAT_END===="<<endl;
 }
 
 bool Mosaic_Cache::_reconfig_l1_to_l2()

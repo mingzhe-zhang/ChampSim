@@ -2,6 +2,7 @@
 #define MOSAIC_CACHE_H
 
 #include "lpm.h"
+#include <iostream>
 
 struct mosaic_cache_info_t
 {
@@ -45,6 +46,9 @@ public:
 	
 	float get_lpmr(int core_id, int cache_level);
 
+	// for statistics
+	void add_writeback(int core_id, int cache_level, int writeback_count);
+	void print_statistics();
 
 private:
 	LPM* lpm_monitor;
@@ -81,6 +85,15 @@ private:
 	bool _reconfig_l2_to_l1();
 	bool _reconfig_l2_to_l3();
 	bool _reconfig_l3_to_l2();
+
+	// for statistics
+	int** _writeback_counter;
+	int _total_writeback_counter;
+	int _l1_to_l2_counter;
+	int _l2_to_l3_counter;
+	int _l2_to_l1_counter;
+	int _l3_to_l2_counter;
+	int _total_reconfig_counter;
 };
 
 #endif
