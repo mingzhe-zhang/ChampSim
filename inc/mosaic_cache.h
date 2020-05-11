@@ -1,3 +1,32 @@
+// ====================================
+// ======== MOSAIC CACHE USAGE ========
+// ====================================
+// STEP 1: instantiate Mosaic_Cache with Mosaic_Cache();
+// STEP 2: initialize the Mosaic_Cache
+// 		2-1 set_work_mode()
+// 		2-2 set_writeback_mode()
+// 		2-3 set_delta()
+// 		2-4 set_check_period()
+// 		2-5 set_mosaic_cache_info() (you can only reset adaptive info with set_adaptive())
+// 		2-6 init_mosaic_cache()
+// STEP 3: get information for host simulator initilization with get_max_way_num()
+// STEP 4: identify the work mode during the runtime of host simulator with get_work_mode() 
+// STEP 5: dynamic way information for each cache access by using get_current_way_num(), 
+// 		   get_current_way_start_pos() or get_current_way_end_pos(), then register the cache access
+// 		   by using access_reg()
+// STEP 6: Periodically check the mode of mosaic cache
+// 	 	6-1 For motivation mode, periodically output the lpmr by using get_lpmr(); 
+// 	 	6-2 For other modes, check if the mosaic cache needs reconfig by using need_check(), if the 
+// 	 		return is true, use reconfig(). As the return of reconfig() is true, issue writebacks 
+// 	 		according to the return of get_writeback_mode(), and then register the writebacks with
+// 	 		add_writeback().
+// STEP 7: periodically check if the mosaic cache requires to forward the stat window with need_forward(),
+// 		   if the return is true, call forward_window()
+// STEP 8: output the statistics with print_statistics()
+// ====================================
+// ======== USAGE END, ENJOY! =========
+// ====================================
+		   
 #ifndef MOSAIC_CACHE_H
 #define MOSAIC_CACHE_H
 
@@ -15,21 +44,28 @@ struct mosaic_cache_info_t
 	int adaptive_way_num;
 	int ratio_of_lower_level;
 	int reconfig_threshold;
+	int latency;
 };
 
 
 class Mosaic_Cache
 {
 public:
-	Mosaic_Cache(int new_core_num, int cache_level_count, float new_delta, uint64_t new_check_period);
+	Mosaic_Cache(int new_core_num, int cache_level_count);
 	~Mosaic_Cache();
 
 	bool set_work_mode(int new_mode);
 	bool set_writeback_mode(int new_mode);
+	void set_delta(float new_delta);
+	void set_check_period(uint64_t new_check_period);
 
-	bool set_mosaic_cache_info(int cache_level, int way_num, int adaptive_way_num, int ratio, int reconfig_threshold);
-	bool set_adaptive_way_num(int cache_level, int new_adaptive_way_num);
+	bool set_mosaic_cache_info(int cache_level, int way_num, int adaptive_way_num, int ratio, int reconfig_threshold, int latency);
+	bool set_adaptive(int cache_level, int new_adaptive_way_num, int reconfig_threshold);
 	bool init_mosaic_cache();
+
+	void forward_window(uint64_t current_cycle);
+
+
 
 	int get_current_way_num(int cache_level);
 	int get_current_way_start_pos(int cache_level);
@@ -37,8 +73,10 @@ public:
 
 	int get_max_way_num(int cache_level);
 	int get_writeback_mode(){return writeback_mode;};
+	int get_work_mode(){return work_mode;};
 
 	bool need_check(uint64_t current_cycle);
+	bool need_forward(uint64_t current_cycle);
 
 	bool reconfig(uint64_t current_cycle); 
 
@@ -85,6 +123,8 @@ private:
 	bool _reconfig_l2_to_l1();
 	bool _reconfig_l2_to_l3();
 	bool _reconfig_l3_to_l2();
+
+
 
 	// for statistics
 	int** _writeback_counter;

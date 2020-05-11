@@ -5,6 +5,16 @@
 #include "uncore.h"
 #include <fstream>
 
+// zmz modify
+#include "mosaic_cache.h"
+
+// zmz modify
+Mosaic_Cache Mosaic_Cache_Monitor(NUM_CPUS, 3);
+int mosaic_cache_adaptive_way_num[3];
+int mosaic_cache_reconfig_threshold[3];
+int mosaic_cache_ratio[3];
+// zmz modify end
+
 uint8_t warmup_complete[NUM_CPUS], 
         simulation_complete[NUM_CPUS], 
         all_warmup_complete = 0, 
@@ -518,6 +528,19 @@ int main(int argc, char** argv)
             {"cloudsuite", no_argument, 0, 'c'},
             {"low_bandwidth",  no_argument, 0, 'b'},
             {"traces",  no_argument, 0, 't'},
+            {"mosaic_cache_target_delta", required_argument, 0, 'd'}, /*zmz modify*/
+            {"mosaic_cache_check_period", required_argument, 0, 'p'}, /*zmz modify*/
+            {"mosaic_cache_work_mode", required_argument, 0, 'm'}, /*zmz modify*/
+            {"mosaic_cache_writeback_mode", required_argument, 0, 'v'}, /*zmz modify*/
+            {"mosaic_cache_l1_adaptive_way_num", required_argument, 0, 'x'}, /*zmz modify*/
+            {"mosaic_cache_l1_reconfig_threshold", required_argument, 0, 'e'}, /*zmz modify*/
+            {"mosaic_cache_l2_adaptive_way_num", required_argument, 0, 'y'}, /*zmz modify*/
+            {"mosaic_cache_l2_reconfig_threshold", required_argument, 0, 'f'}, /*zmz modify*/
+            {"mosaic_cache_l3_adaptive_way_num", required_argument, 0, 'z'}, /*zmz modify*/
+            {"mosaic_cache_l3_reconfig_threshold", required_argument, 0, 'g'}, /*zmz modify*/
+            {"mosaic_cache_l1_ratio", required_argument, 0, 'j'}, /*zmz modify*/
+            {"mosaic_cache_l2_ratio", required_argument, 0, 'k'}, /*zmz modify*/
+            {"mosaic_cache_l3_ratio", required_argument, 0, 'l'}, /*zmz modify*/
             {0, 0, 0, 0}      
         };
 
@@ -551,12 +574,97 @@ int main(int argc, char** argv)
             case 't':
                 traces_encountered = 1;
                 break;
+            case 'd': /*zmz modify*/
+                Mosaic_Cache_Monitor.set_delta(atof(optarg));
+                break;
+            case 'p': /*zmz modify*/
+                Mosaic_Cache_Monitor.set_check_period(atol(optarg));
+                break;
+            case 'm': /*zmz modify*/
+                Mosaic_Cache_Monitor.set_work_mode(atoi(optarg));
+                break;
+            case 'v': /*zmz modify*/
+                Mosaic_Cache_Monitor.set_work_mode(atoi(optarg));
+                break;
+            case 'x': /*zmz modify*/
+                mosaic_cache_adaptive_way_num[LPM_L1] = atoi(optarg);
+                break;
+            case 'y': /*zmz modify*/
+                mosaic_cache_adaptive_way_num[LPM_L2] = atoi(optarg);
+                break;
+            case 'z': /*zmz modify*/
+                mosaic_cache_adaptive_way_num[LPM_L3] = atoi(optarg);
+                break;
+            case 'e': /*zmz modify*/
+                mosaic_cache_reconfig_threshold[LPM_L1] = atoi(optarg);
+                break;
+            case 'f': /*zmz modify*/
+                mosaic_cache_reconfig_threshold[LPM_L2] = atoi(optarg);
+                break;
+            case 'g': /*zmz modify*/
+                mosaic_cache_reconfig_threshold[LPM_L3] = atoi(optarg);
+                break;
+            case 'j': /*zmz modify*/
+                mosaic_cache_ratio[LPM_L1] = atoi(optarg);
+                break;
+            case 'k': /*zmz modify*/
+                mosaic_cache_ratio[LPM_L2] = atoi(optarg);
+                break;
+            case 'l': /*zmz modify*/
+                mosaic_cache_ratio[LPM_L3] = atoi(optarg);
+                break;
             default:
                 abort();
         }
 
         if (traces_encountered == 1)
             break;
+    }
+
+    // zmz modify
+    if(mosaic_cache_monitor.get_work_mode() != 0)
+    {
+        for(int core_idx = 0; core_idx < core_num; core_idx++)
+        {
+            bool core_set_flag = true;
+            for(int cache_level_idx = 0; cache_level_idx < 3; cache_level_idx++)
+            {
+                int way_num = -1;
+                int latency = -1;
+
+                switch(cache_level_idx)
+                {
+                    case LPM_L1:
+                        way_num = L1D_WAY;
+                        latency = L1D_LATENCY;
+                        break;
+                    case LPM_L2:
+                        way_num = L2C_WAY;
+                        latency = L2C_LATENCY;
+                        break;
+                    case LPM_L3:
+                        way_num = LLC_WAY;
+                        latency = LLC_LATENCY;
+                        break;
+                    default:
+                        break;
+                }
+
+                bool ret = mosaic_cache_monitor[core_idx].set_mosaic_cache_info(
+                    cache_level_idx, way_num, mosaic_cache_adaptive_way_num[cache_level_idx],
+                    mosaic_cache_ratio[cache_level_idx], mosaic_cache_reconfig_threshold[cache_level_idx],
+                    latency);
+                if(!ret)
+                    cout <<"[WARNING] Mosaic Cache Level "<<cache_level_idx<<" init fail!"<<endl;
+
+                core_set_flag *= ret;
+            }
+            
+            if(core_set_flag && mosaic_cache_monitor[core_idx].init_mosaic_cache())
+                return;
+            else
+                cout <<"[WARNING] Mosaic Cache Monitor for Core ["<<core_idx<<"] init fail!"<<endl;
+        }
     }
 
     // consequences of knobs
@@ -678,7 +786,7 @@ int main(int argc, char** argv)
         // TLBs
         ooo_cpu[i].ITLB.cpu = i;
         ooo_cpu[i].ITLB.cache_type = IS_ITLB;
-	ooo_cpu[i].ITLB.MAX_READ = 2;
+	    ooo_cpu[i].ITLB.MAX_READ = 2;
         ooo_cpu[i].ITLB.fill_level = FILL_L1;
         ooo_cpu[i].ITLB.extra_interface = &ooo_cpu[i].L1I;
         ooo_cpu[i].ITLB.lower_level = &ooo_cpu[i].STLB; 

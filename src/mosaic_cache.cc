@@ -1,6 +1,6 @@
 #include "mosaic_cache.h"
 
-Mosaic_Cache::Mosaic_Cache(int new_core_num, int new_cache_level_count, float new_delta, uint64_t new_check_period)
+Mosaic_Cache::Mosaic_Cache(int new_core_num, int new_cache_level_count)
 {
 	// init system and cache configuration
 	core_num = new_core_num;
@@ -13,8 +13,8 @@ Mosaic_Cache::Mosaic_Cache(int new_core_num, int new_cache_level_count, float ne
 	}
 
 	// init mosaic_cache configuration
-	target_delta = new_delta;
-	check_period = new_check_period;
+	target_delta = 1;
+	check_period = 500000;
 	set_work_mode(0);
 	set_writeback_mode(0);
 
@@ -75,12 +75,22 @@ bool Mosaic_Cache::set_writeback_mode(int new_mode)
 	return true;
 }
 
+void Mosaic_Cache::set_delta(float new_delta)
+{
+	target_delta = new_delta;
+}
+
+void Mosaic_Cache::set_check_period(uint64_t new_check_period)
+{
+	check_period = new_check_period;
+}
+
 bool Mosaic_Cache::set_mosaic_cache_info(int cache_level, int way_num, int adaptive_way_num, 
-	int ratio, int reconfig_threshold)
+	int ratio, int reconfig_threshold, int latency)
 {
 	if(cache_level < LPM_L1 || cache_level > LPM_L3
 		|| way_num < 0 || adaptive_way_num < 0 || adaptive_way_num > way_num
-		|| reconfig_threshold <0 || reconfig_threshold >core_num)
+		|| reconfig_threshold <0 || reconfig_threshold >core_num || latency < 0)
 	{
 		return false;
 	}
@@ -91,6 +101,7 @@ bool Mosaic_Cache::set_mosaic_cache_info(int cache_level, int way_num, int adapt
 	mosaic_cache_info[cache_level].adaptive_way_num = adaptive_way_num;
 	mosaic_cache_info[cache_level].ratio_of_lower_level = ratio;
 	mosaic_cache_info[cache_level].reconfig_threshold = reconfig_threshold;
+	mosaic_cache_info[cache_level].latency = latency;
 	mosaic_cache_info[cache_level].need_set = false;
 
 	return true;
@@ -132,7 +143,7 @@ bool Mosaic_Cache::init_mosaic_cache()
 	return true;
 }
 
-bool Mosaic_Cache::set_adaptive_way_num(int cache_level, int new_adaptive_way_num)
+bool Mosaic_Cache::set_adaptive(int cache_level, int new_adaptive_way_num, int reconfig_threshold)
 {
 	if(cache_level<LPM_L1 || cache_level > LPM_L3)
 		return false;
@@ -140,7 +151,10 @@ bool Mosaic_Cache::set_adaptive_way_num(int cache_level, int new_adaptive_way_nu
 		return false;
 	if(mosaic_cache_info[cache_level].origin_way_num < new_adaptive_way_num)
 		return false;
+	if(reconfig_threshold > core_num)
+		return false;
 	mosaic_cache_info[cache_level].adaptive_way_num = new_adaptive_way_num;
+	mosaic_cache_info[cache_level].reconfig_threshold = reconfig_threshold;
 	if(init_mosaic_cache())
 	{
 		return true;
@@ -189,6 +203,7 @@ int Mosaic_Cache::get_max_way_num(int cache_level)
 
 bool Mosaic_Cache::need_check(uint64_t current_cycle)
 {
+
 	if(mosaic_cache_info[LPM_L1].need_init == true
 		|| mosaic_cache_info[LPM_L2].need_init == true
 		|| mosaic_cache_info[LPM_L3].need_init == true)
@@ -202,6 +217,14 @@ bool Mosaic_Cache::need_check(uint64_t current_cycle)
 	{
 		return true;
 	}
+}
+
+bool Mosaic_Cache::need_forward(uint64_t current_cycle)
+{
+	if(last_check_cycle + check_period < current_cycle)
+		return true;
+	else
+		return false;
 }
 
 bool Mosaic_Cache::reconfig(uint64_t current_cycle)
@@ -394,7 +417,11 @@ bool Mosaic_Cache::access_reg(int core_id, int cache_level, uint64_t start_cycle
 		return false;
 	}
 
-	if(start_cycle - last_check_cycle + cycle_count >= check_period)
+	if(type == LPM_HIT_ACCESS)
+	{
+		cycle_count = mosaic_cache_info[cache_level].latency;
+	}
+	else if(start_cycle - last_check_cycle + cycle_count >= check_period)
 	{
 		cycle_count = check_period - (start_cycle - last_check_cycle);
 	}
@@ -570,5 +597,15 @@ bool Mosaic_Cache::_reconfig_l3_to_l2()
 	else
 	{
 		return false;
+	}
+}
+
+void Mosaic_Cache::_forward_window(uint64_t current_cycle)
+{
+	last_check_cycle = current_cycle;
+
+	for(int core_idx = 0; core_idx < core_num; core_idx++)
+	{
+		lpm_monitor[core_idx].reset(current_cycle);
 	}
 }
