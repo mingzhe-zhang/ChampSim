@@ -6,10 +6,6 @@
 #include <fstream>
 
 // zmz modify
-#include "mosaic_cache.h"
-
-// zmz modify
-Mosaic_Cache Mosaic_Cache_Monitor(NUM_CPUS, 3);
 int mosaic_cache_adaptive_way_num[3];
 int mosaic_cache_reconfig_threshold[3];
 int mosaic_cache_ratio[3];
@@ -34,6 +30,115 @@ uint32_t PAGE_TABLE_LATENCY = 0, SWAP_LATENCY = 0;
 queue <uint64_t > page_queue;
 map <uint64_t, uint64_t> page_table, inverse_table, recent_page, unique_cl[NUM_CPUS];
 uint64_t previous_ppage, num_adjacent_page, num_cl[NUM_CPUS], allocated_pages, num_page[NUM_CPUS], minor_fault[NUM_CPUS], major_fault[NUM_CPUS];
+
+// zmz modify
+// WARNING: THE FOLLOWING FUNCTIONS ARE FOR MOSAIC CACHE ONLY!
+void _mosaic_cache_solve_op(int op_id, int origin_way_pos)
+{
+    int start_pos, end_pos;
+    CACHE* cache_ptr = NULL;
+    int writeback_cache_level;
+
+    switch (op_id)
+    {
+        case 0:
+            return;
+        case 1:
+            start_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L1);
+            end_pos = origin_way_pos;
+            writeback_cache_level = LPM_L1;
+            break;
+        case 2:
+            start_pos = origin_way_pos;
+            end_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L2);
+            writeback_cache_level = LPM_L2;
+            break;
+        case 3:
+            start_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L2);
+            end_pos =origin_way_pos;
+            writeback_cache_level = LPM_L2;
+            break;
+        case 4:
+            start_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L3);
+            end_pos = origin_way_pos;
+            break;
+        default:
+            return;
+    }
+
+    bool rollback_flag = false;
+
+    for(int core_idx = 0; core_idx < NUM_CPUS; core_idx++)
+    {
+        switch(op_id)
+        {
+            case 1:
+                cache_ptr = &(ooo_cpu[core_idx].L1D);
+                break;
+            case 2:
+                cache_ptr = &(ooo_cpu[core_idx].L2C);
+                break;
+            case 3:
+                cache_ptr = &(ooo_cpu[core_idx].L2C);
+                break;
+            case 4:
+                cache_ptr = &(uncore.LLC);
+                break;
+            default:
+                assert(0);
+        }
+
+        int writeback_num = 0;
+
+        for(int way_idx = start_pos; way_idx < end_pos; way_idx++)
+        {
+
+            writeback_num += cache_ptr->mosaic_cache_get_writeback_count(way_idx); 
+        }
+        if(!cache_ptr->mosaic_cache_can_writeback(writeback_num))
+        {
+            rollback_flag = true;
+            break;                                    
+        }
+    }
+    
+    if(rollback_flag == true) // reconfig fail, need rollback
+    {
+        Mosaic_Cache_Monitor.RollBack();
+        return;
+    }
+
+    // issue writeback
+    for(int core_idx = 0; core_idx < NUM_CPUS; core_idx++)
+    {
+        switch(op_id)
+        {
+            case 1:
+                cache_ptr = &(ooo_cpu[core_idx].L1D);
+                break;
+            case 2:
+                cache_ptr = &(ooo_cpu[core_idx].L2C);
+                break;
+            case 3:
+                cache_ptr = &(ooo_cpu[core_idx].L2C);
+                break;
+            case 4:
+                cache_ptr = &(uncore.LLC);
+                break;
+            default:
+                assert(0);
+        }
+
+        int writeback_num = 0;
+
+        for(int way_idx = start_pos; way_idx < end_pos; way_idx++)
+        {
+            writeback_num += cache_ptr->mosaic_cache_get_writeback_count(way_idx);
+            cache_ptr->mosaic_cache_issue_writeback(way_idx);
+        }
+        Mosaic_Cache_Monitor.add_writeback(core_idx, writeback_cache_level, writeback_num);
+    }
+}
 
 void record_roi_stats(uint32_t cpu, CACHE *cache)
 {
@@ -622,49 +727,62 @@ int main(int argc, char** argv)
     }
 
     // zmz modify
-    if(mosaic_cache_monitor.get_work_mode() != 0)
+    if(Mosaic_Cache_Monitor.get_work_mode() != 0)
     {
-        for(int core_idx = 0; core_idx < core_num; core_idx++)
+        bool core_set_flag = true;
+        for(int cache_level_idx = 0; cache_level_idx < 3; cache_level_idx++)
         {
-            bool core_set_flag = true;
-            for(int cache_level_idx = 0; cache_level_idx < 3; cache_level_idx++)
+            int way_num = -1;
+            int latency = -1;
+
+            switch(cache_level_idx)
             {
-                int way_num = -1;
-                int latency = -1;
-
-                switch(cache_level_idx)
-                {
-                    case LPM_L1:
-                        way_num = L1D_WAY;
-                        latency = L1D_LATENCY;
-                        break;
-                    case LPM_L2:
-                        way_num = L2C_WAY;
-                        latency = L2C_LATENCY;
-                        break;
-                    case LPM_L3:
-                        way_num = LLC_WAY;
-                        latency = LLC_LATENCY;
-                        break;
-                    default:
-                        break;
-                }
-
-                bool ret = mosaic_cache_monitor[core_idx].set_mosaic_cache_info(
-                    cache_level_idx, way_num, mosaic_cache_adaptive_way_num[cache_level_idx],
-                    mosaic_cache_ratio[cache_level_idx], mosaic_cache_reconfig_threshold[cache_level_idx],
-                    latency);
-                if(!ret)
-                    cout <<"[WARNING] Mosaic Cache Level "<<cache_level_idx<<" init fail!"<<endl;
-
-                core_set_flag *= ret;
+                case LPM_L1:
+                    way_num = L1D_WAY;
+                    latency = L1D_LATENCY;
+                    break;
+                case LPM_L2:
+                    way_num = L2C_WAY;
+                    latency = L2C_LATENCY;
+                    break;
+                case LPM_L3:
+                    way_num = LLC_WAY;
+                    latency = LLC_LATENCY;
+                    break;
+                default:
+                    break;
             }
-            
-            if(core_set_flag && mosaic_cache_monitor[core_idx].init_mosaic_cache())
-                return;
-            else
-                cout <<"[WARNING] Mosaic Cache Monitor for Core ["<<core_idx<<"] init fail!"<<endl;
+
+            bool ret = Mosaic_Cache_Monitor.set_mosaic_cache_info(
+                cache_level_idx, way_num, mosaic_cache_adaptive_way_num[cache_level_idx],
+                mosaic_cache_ratio[cache_level_idx], mosaic_cache_reconfig_threshold[cache_level_idx],
+                latency);
+            if(!ret)
+                cout <<"[WARNING] Mosaic Cache Level "<<cache_level_idx<<" init fail!"<<endl;
+
+            core_set_flag *= ret;
         }
+        
+        if(core_set_flag && Mosaic_Cache_Monitor.init_mosaic_cache())
+        {
+            cout<<"Mosaic Cache init successful."<<endl;
+        }
+        else
+        {
+            cout<<"[WARNING] Mosaic Cache Monitor init fail!"<<endl;
+        }
+    }
+
+    // zmz modify (step 3)
+    if(Mosaic_Cache_Monitor.get_work_mode() > 1)
+    {
+        for(int core_idx = 0; core_idx < NUM_CPUS; core_idx++)
+        {
+            ooo_cpu[core_idx].L1I.resize_way(Mosaic_Cache_Monitor.get_max_way_num(LPM_L1));
+            ooo_cpu[core_idx].L1D.resize_way(Mosaic_Cache_Monitor.get_max_way_num(LPM_L1));
+            ooo_cpu[core_idx].L2C.resize_way(Mosaic_Cache_Monitor.get_max_way_num(LPM_L2));
+        }
+        uncore.LLC.resize_way(Mosaic_Cache_Monitor.get_max_way_num(LPM_L3));
     }
 
     // consequences of knobs
@@ -878,7 +996,8 @@ int main(int argc, char** argv)
         elapsed_minute -= elapsed_hour*60;
         elapsed_second -= (elapsed_hour*3600 + elapsed_minute*60);
 
-        for (int i=0; i<NUM_CPUS; i++) {
+        for (int i=0; i<NUM_CPUS; i++) 
+        {
             // proceed one cycle
             current_core_cycle[i]++;
 
@@ -886,48 +1005,49 @@ int main(int argc, char** argv)
             //cout << " stall_cycle: " << stall_cycle[i] << " current: " << current_core_cycle[i] << endl;
 
             // core might be stalled due to page fault or branch misprediction
-            if (stall_cycle[i] <= current_core_cycle[i]) {
+            if (stall_cycle[i] <= current_core_cycle[i]) 
+            {
+                // retire
+                if ((ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].executed == COMPLETED) && (ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].event_cycle <= current_core_cycle[i]))
+		          ooo_cpu[i].retire_rob();
 
-	      // retire
-	      if ((ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].executed == COMPLETED) && (ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].event_cycle <= current_core_cycle[i]))
-		ooo_cpu[i].retire_rob();
+                // complete 
+                ooo_cpu[i].update_rob();
 
-	      // complete 
-	      ooo_cpu[i].update_rob();
+                // schedule
+                uint32_t schedule_index = ooo_cpu[i].ROB.next_schedule;
+                if ((ooo_cpu[i].ROB.entry[schedule_index].scheduled == 0) && (ooo_cpu[i].ROB.entry[schedule_index].event_cycle <= current_core_cycle[i]))
+                    ooo_cpu[i].schedule_instruction();
+                // execute
+                ooo_cpu[i].execute_instruction();
 
-	      // schedule
-	      uint32_t schedule_index = ooo_cpu[i].ROB.next_schedule;
-	      if ((ooo_cpu[i].ROB.entry[schedule_index].scheduled == 0) && (ooo_cpu[i].ROB.entry[schedule_index].event_cycle <= current_core_cycle[i]))
-		ooo_cpu[i].schedule_instruction();
-	      // execute
-	      ooo_cpu[i].execute_instruction();
+                ooo_cpu[i].update_rob();
 
-	      ooo_cpu[i].update_rob();
+                // memory operation
+                ooo_cpu[i].schedule_memory_instruction();
+                ooo_cpu[i].execute_memory_instruction();
 
-	      // memory operation
-	      ooo_cpu[i].schedule_memory_instruction();
-	      ooo_cpu[i].execute_memory_instruction();
+                ooo_cpu[i].update_rob();
 
-	      ooo_cpu[i].update_rob();
-
-	      // decode
-	      if(ooo_cpu[i].DECODE_BUFFER.occupancy > 0)
-		{
-		  ooo_cpu[i].decode_and_dispatch();
-		}
+                // decode
+                if(ooo_cpu[i].DECODE_BUFFER.occupancy > 0)
+                {
+                    ooo_cpu[i].decode_and_dispatch();
+                }
 	      
-	      // fetch
-	      ooo_cpu[i].fetch_instruction();
+                // fetch
+                ooo_cpu[i].fetch_instruction();
 	      
-	      // read from trace
-	      if ((ooo_cpu[i].IFETCH_BUFFER.occupancy < ooo_cpu[i].IFETCH_BUFFER.SIZE) && (ooo_cpu[i].fetch_stall == 0))
-		{
-		  ooo_cpu[i].read_from_trace();
-		}
-	    }
+                // read from trace
+                if ((ooo_cpu[i].IFETCH_BUFFER.occupancy < ooo_cpu[i].IFETCH_BUFFER.SIZE) && (ooo_cpu[i].fetch_stall == 0))
+                {
+                    ooo_cpu[i].read_from_trace();
+                }
+            }
 
             // heartbeat information
-            if (show_heartbeat && (ooo_cpu[i].num_retired >= ooo_cpu[i].next_print_instruction)) {
+            if (show_heartbeat && (ooo_cpu[i].num_retired >= ooo_cpu[i].next_print_instruction)) 
+            {
                 float cumulative_ipc;
                 if (warmup_complete[i])
                     cumulative_ipc = (1.0*(ooo_cpu[i].num_retired - ooo_cpu[i].begin_sim_instr)) / (current_core_cycle[i] - ooo_cpu[i].begin_sim_cycle);
@@ -950,11 +1070,13 @@ int main(int argc, char** argv)
 
             // check for warmup
             // warmup complete
-            if ((warmup_complete[i] == 0) && (ooo_cpu[i].num_retired > warmup_instructions)) {
+            if ((warmup_complete[i] == 0) && (ooo_cpu[i].num_retired > warmup_instructions)) 
+            {
                 warmup_complete[i] = 1;
                 all_warmup_complete++;
             }
-            if (all_warmup_complete == NUM_CPUS) { // this part is called only once when all cores are warmed up
+            if (all_warmup_complete == NUM_CPUS) 
+            { // this part is called only once when all cores are warmed up
                 all_warmup_complete++;
                 finish_warmup();
             }
@@ -993,6 +1115,122 @@ int main(int argc, char** argv)
         // TODO: should it be backward?
         uncore.DRAM.operate();
         uncore.LLC.operate();
+
+        // zmz modify (step 6)
+        int mosaic_cache_mode = Mosaic_Cache_Monitor.get_work_mode();
+        switch(mosaic_cache_mode)
+        {
+            case 0: /* mosaic cache off */
+            {
+                break;
+            }
+            case 1: /* motivation mode */
+            {
+                cout<<"[MOTIVATION] Current Cycle: "<<current_core_cycle[0]<<endl;
+                for(int i=0; i<NUM_CPUS; i++)
+                {
+                    cout<<" Core "<<i
+                        <<": L1="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L1)
+                        <<", L2="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L2)
+                        <<", L3="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L3)
+                        <<endl;
+                }
+                break;
+            }
+            case 2: /* l1<-->l2 */
+            {
+                if(Mosaic_Cache_Monitor.need_check(current_core_cycle[0]))
+                {
+                    int origin_l1_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L1);
+                    int origin_l2_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L2);
+
+                    if(Mosaic_Cache_Monitor.reconfig(current_core_cycle[0]))
+                    {
+                        int op_type = Mosaic_Cache_Monitor.get_last_operation();
+
+                        switch(op_type)
+                        {
+                            case 1:
+                                _mosaic_cache_solve_op(op_type, origin_l1_way_end_pos);
+                                break;
+                            case 2:
+                                _mosaic_cache_solve_op(op_type, origin_l2_way_start_pos);
+                                break;
+                            default:
+                                assert(0);
+                        }
+                    }
+                    Mosaic_Cache_Monitor.forward_window(current_core_cycle[0]);
+                }
+                break;
+            }
+            case 3: /* l2<-->l3 */
+            {
+                if(Mosaic_Cache_Monitor.need_check(current_core_cycle[0]))
+                {
+                    int origin_l2_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L2);
+                    int origin_l3_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L3);
+
+                    if(Mosaic_Cache_Monitor.reconfig(current_core_cycle[0]))
+                    {
+                        int op_type = Mosaic_Cache_Monitor.get_last_operation();
+
+                        switch(op_type)
+                        {
+                            case 3:
+                                _mosaic_cache_solve_op(op_type, origin_l2_way_end_pos);
+                                break;
+                            case 4:
+                                _mosaic_cache_solve_op(op_type, origin_l3_way_end_pos);
+                                break;
+                            default:
+                                assert(0);
+                        }
+                    }
+                    Mosaic_Cache_Monitor.forward_window(current_core_cycle[0]);
+                }
+                break;
+            }
+            case 4: /* l1<-->l2<-->l3 */
+            {
+                if(Mosaic_Cache_Monitor.need_check(current_core_cycle[0]))
+                {
+                    int origin_l1_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L1);
+                    int origin_l2_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L2);
+                    int origin_l2_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L2);
+                    int origin_l3_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L3);
+
+                    if(Mosaic_Cache_Monitor.reconfig(current_core_cycle[0]))
+                    {
+                        int op_type = Mosaic_Cache_Monitor.get_last_operation();
+
+                        switch(op_type)
+                        {
+                            case 1:
+                                _mosaic_cache_solve_op(op_type, origin_l1_way_end_pos);
+                                break;
+                            case 2:
+                                _mosaic_cache_solve_op(op_type, origin_l2_way_start_pos);
+                                break;
+                            case 3:
+                                _mosaic_cache_solve_op(op_type, origin_l2_way_end_pos);
+                                break;
+                            case 4:
+                                _mosaic_cache_solve_op(op_type, origin_l3_way_end_pos);
+                                break;
+                            default:
+                                assert(0);
+                        }
+                    }
+                    Mosaic_Cache_Monitor.forward_window(current_core_cycle[0]);
+                }
+                break;
+            }
+            default:
+            {
+                assert(0);
+            }
+        }
     }
 
     uint64_t elapsed_second = (uint64_t)(time(NULL) - start_time),

@@ -18,11 +18,40 @@ void CACHE::update_replacement_state(uint32_t cpu, uint32_t set, uint32_t way, u
 
 uint32_t CACHE::lru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type)
 {
-    uint32_t way = 0;
+    // zmz modify (STEP 5)
+    int current_way_start_pos=0, current_way_end_pos=NUM_WAY;
+    if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+    {
+        switch(cache_type)
+        {
+            case IS_L1D:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L1);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L1);
+                break;
+            case IS_L2C:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L2);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L2);
+                break;
+            case IS_LLC:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L3);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L3);
+                break;
+            default:
+                current_way_start_pos = 0;
+                current_way_end_pos = NUM_WAY;
+                break;
+        }
+    }
+
+    //uint32_t way = 0;
+    uint32_t way = current_way_start_pos;
 
     // fill invalid line first
-    for (way=0; way<NUM_WAY; way++) {
-        if (block[set][way].valid == false) {
+    // for (way=0; way<NUM_WAY; way++) 
+    for (way=current_way_start_pos; way<current_way_end_pos; way++)
+    {
+        if (block[set][way].valid == false) 
+        {
 
             DP ( if (warmup_complete[cpu]) {
             cout << "[" << NAME << "] " << __func__ << " instr_id: " << instr_id << " invalid set: " << set << " way: " << way;
@@ -34,9 +63,14 @@ uint32_t CACHE::lru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const 
     }
 
     // LRU victim
-    if (way == NUM_WAY) {
-        for (way=0; way<NUM_WAY; way++) {
-            if (block[set][way].lru == NUM_WAY-1) {
+    //if (way == NUM_WAY)
+    if (way == current_way_end_pos)
+    {
+        //for (way=0; way<NUM_WAY; way++)
+        for (way=current_way_start_pos; way<current_way_end_pos; way++)
+        {
+            if (block[set][way].lru == NUM_WAY-1) 
+            {
 
                 DP ( if (warmup_complete[cpu]) {
                 cout << "[" << NAME << "] " << __func__ << " instr_id: " << instr_id << " replace set: " << set << " way: " << way;
@@ -48,7 +82,9 @@ uint32_t CACHE::lru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const 
         }
     }
 
-    if (way == NUM_WAY) {
+    //if (way == NUM_WAY)
+    if (way == current_way_end_pos)
+    {
         cerr << "[" << NAME << "] " << __func__ << " no victim! set: " << set << endl;
         assert(0);
     }
@@ -58,9 +94,38 @@ uint32_t CACHE::lru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const 
 
 void CACHE::lru_update(uint32_t set, uint32_t way)
 {
+    // zmz modify (STEP 5)
+    int current_way_start_pos=0, current_way_end_pos=NUM_WAY;
+    if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+    {
+        switch(cache_type)
+        {
+            case IS_L1D:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L1);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L1);
+                break;
+            case IS_L2C:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L2);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L2);
+                break;
+            case IS_LLC:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L3);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L3);
+                break;
+            default:
+                current_way_start_pos = 0;
+                current_way_end_pos = NUM_WAY;
+                break;
+        }
+    }
+
+    // zmz modify
     // update lru replacement state
-    for (uint32_t i=0; i<NUM_WAY; i++) {
-        if (block[set][i].lru < block[set][way].lru) {
+    //for (uint32_t i=0; i<NUM_WAY; i++) 
+    for (uint32_t i=current_way_start_pos; i<current_way_end_pos; i++)
+    {
+        if (block[set][i].lru < block[set][way].lru) 
+        {
             block[set][i].lru++;
         }
     }

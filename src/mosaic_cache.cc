@@ -12,6 +12,10 @@ Mosaic_Cache::Mosaic_Cache(int new_core_num, int new_cache_level_count)
 		mosaic_cache_info[idx].need_init = true;
 	}
 
+	// for rollback
+	cache_info_snapshot = NULL;
+	last_operation = 0;
+
 	// init mosaic_cache configuration
 	target_delta = 1;
 	check_period = 500000;
@@ -52,6 +56,7 @@ Mosaic_Cache::~Mosaic_Cache()
 
 	delete[] lpm_monitor;
 	delete[] mosaic_cache_info;
+	delete[] cache_info_snapshot;
 	for(int core_idx = 0; core_idx < core_num; core_idx++)
 	{
 		delete[] _writeback_counter[core_idx];
@@ -476,6 +481,10 @@ bool Mosaic_Cache::_reconfig_l1_to_l2()
 			- mosaic_cache_info[LPM_L1].ratio_of_lower_level / 2;
 		if(new_pos > mosaic_cache_info[LPM_L1].origin_way_num)
 		{
+			// create rollback information
+			_snapshot();
+			last_operation =1;
+
 			mosaic_cache_info[LPM_L2].current_way_start_pos--;
 			mosaic_cache_info[LPM_L1].current_way_end_pos = new_pos;
 			return true;
@@ -500,6 +509,10 @@ bool Mosaic_Cache::_reconfig_l2_to_l1()
 			+ mosaic_cache_info[LPM_L1].ratio_of_lower_level / 2;
 		if(new_pos < mosaic_cache_info[LPM_L1].max_way_num)
 		{
+			// create rollback information
+			_snapshot();
+			last_operation = 2;
+
 			mosaic_cache_info[LPM_L1].current_way_end_pos = new_pos;
 			mosaic_cache_info[LPM_L2].current_way_start_pos++;
 			return true;
@@ -525,6 +538,10 @@ bool Mosaic_Cache::_reconfig_l2_to_l3()
 		if(new_pos >= mosaic_cache_info[LPM_L2].origin_way_num
 			&& mosaic_cache_info[LPM_L3].current_way_end_pos < mosaic_cache_info[LPM_L3].origin_way_num)
 		{
+			// create rollback information
+			_snapshot();
+			last_operation = 3;
+
 			mosaic_cache_info[LPM_L2].current_way_end_pos = new_pos;
 			mosaic_cache_info[LPM_L3].current_way_end_pos++;
 			return true;
@@ -543,6 +560,10 @@ bool Mosaic_Cache::_reconfig_l2_to_l3()
 		if(new_pos < mosaic_cache_info[LPM_L2].adaptive_way_num
 			&& mosaic_cache_info[LPM_L3].current_way_end_pos < mosaic_cache_info[LPM_L3].max_way_num)
 		{
+			// create rollback information
+			_snapshot();
+			last_operation = 3;
+
 			mosaic_cache_info[LPM_L2].current_way_start_pos = new_pos;
 			mosaic_cache_info[LPM_L3].current_way_end_pos++;
 			return true;
@@ -567,6 +588,10 @@ bool Mosaic_Cache::_reconfig_l3_to_l2()
 			- mosaic_cache_info[LPM_L2].ratio_of_lower_level / core_num;
 		if(new_pos >=0)
 		{
+			// create rollback information
+			_snapshot();
+			last_operation = 4;
+
 			mosaic_cache_info[LPM_L2].current_way_start_pos = new_pos;
 			mosaic_cache_info[LPM_L3].current_way_end_pos--;
 			return true;
@@ -585,6 +610,10 @@ bool Mosaic_Cache::_reconfig_l3_to_l2()
 			+ mosaic_cache_info[LPM_L2].ratio_of_lower_level / core_num;
 		if(new_pos < mosaic_cache_info[LPM_L2].max_way_num)
 		{
+			// create rollback information
+			_snapshot();
+			last_operation = 4;
+
 			mosaic_cache_info[LPM_L2].current_way_end_pos = new_pos;
 			mosaic_cache_info[LPM_L3].current_way_end_pos--;
 			return true;
@@ -600,7 +629,29 @@ bool Mosaic_Cache::_reconfig_l3_to_l2()
 	}
 }
 
-void Mosaic_Cache::_forward_window(uint64_t current_cycle)
+void Mosaic_Cache::_snapshot()
+{
+	if(cache_info_snapshot != NULL)
+		delete[] cache_info_snapshot;
+
+	cache_info_snapshot = new struct mosaic_cache_info_t[cache_level_count];
+
+	for(int cache_idx = 0; cache_idx < cache_level_count; ++cache_idx)
+	{
+		cache_info_snapshot[cache_idx].need_set = mosaic_cache_info[cache_idx].need_set;
+		cache_info_snapshot[cache_idx].need_init = mosaic_cache_info[cache_idx].need_init;
+		cache_info_snapshot[cache_idx].origin_way_num = mosaic_cache_info[cache_idx].origin_way_num;
+		cache_info_snapshot[cache_idx].current_way_start_pos = mosaic_cache_info[cache_idx].current_way_start_pos;
+		cache_info_snapshot[cache_idx].current_way_end_pos = mosaic_cache_info[cache_idx].current_way_end_pos;
+		cache_info_snapshot[cache_idx].max_way_num = mosaic_cache_info[cache_idx].max_way_num;
+		cache_info_snapshot[cache_idx].adaptive_way_num = mosaic_cache_info[cache_idx].adaptive_way_num;
+		cache_info_snapshot[cache_idx].ratio_of_lower_level = mosaic_cache_info[cache_idx].ratio_of_lower_level;
+		cache_info_snapshot[cache_idx].reconfig_threshold = mosaic_cache_info[cache_idx].reconfig_threshold;
+		cache_info_snapshot[cache_idx].latency = mosaic_cache_info[cache_idx].latency;
+	}
+}
+
+void Mosaic_Cache::forward_window(uint64_t current_cycle)
 {
 	last_check_cycle = current_cycle;
 
@@ -608,4 +659,47 @@ void Mosaic_Cache::_forward_window(uint64_t current_cycle)
 	{
 		lpm_monitor[core_idx].reset(current_cycle);
 	}
+}
+
+bool Mosaic_Cache::RollBack()
+{
+	if(cache_info_snapshot == NULL || last_operation < 1 || last_operation > 4)
+		return false;
+
+	for(int cache_idx = 0; cache_idx < cache_level_count; cache_idx++)
+	{
+		mosaic_cache_info[cache_idx].need_set = cache_info_snapshot[cache_idx].need_set;
+		mosaic_cache_info[cache_idx].need_init =cache_info_snapshot[cache_idx].need_init;
+		mosaic_cache_info[cache_idx].origin_way_num = cache_info_snapshot[cache_idx].origin_way_num;
+		mosaic_cache_info[cache_idx].current_way_start_pos = cache_info_snapshot[cache_idx].current_way_start_pos;
+		mosaic_cache_info[cache_idx].current_way_end_pos = cache_info_snapshot[cache_idx].current_way_end_pos;
+		mosaic_cache_info[cache_idx].max_way_num = cache_info_snapshot[cache_idx].max_way_num;
+		mosaic_cache_info[cache_idx].adaptive_way_num = cache_info_snapshot[cache_idx].adaptive_way_num;
+		mosaic_cache_info[cache_idx].ratio_of_lower_level = cache_info_snapshot[cache_idx].ratio_of_lower_level;
+		mosaic_cache_info[cache_idx].reconfig_threshold = cache_info_snapshot[cache_idx].reconfig_threshold;
+		mosaic_cache_info[cache_idx].latency = cache_info_snapshot[cache_idx].latency;
+	}
+
+	_total_reconfig_counter--;
+	switch (last_operation)
+	{
+		case 1:
+			_l1_to_l2_counter--;
+			break;
+		case 2:
+			_l2_to_l1_counter--;
+			break;
+		case 3:
+			_l2_to_l3_counter--;
+			break;
+		case 4:
+			_l3_to_l2_counter--;
+			break;
+		default:
+			return false;
+	}
+
+	delete[] cache_info_snapshot;
+	cache_info_snapshot = NULL;
+	return true;
 }

@@ -3,6 +3,9 @@
 
 #include "memory_class.h"
 
+// zmz modify
+#include "mosaic_cache.h"
+
 // PAGE
 extern uint32_t PAGE_TABLE_LATENCY, SWAP_LATENCY;
 
@@ -222,6 +225,12 @@ class CACHE : public MEMORY {
              find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type),
              llc_find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type),
              lru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type);
+
+    // zmz modify
+    void resize_way(int new_way_num);
+    int mosaic_cache_get_writeback_count(int way_num);
+    bool mosaic_cache_can_writeback(int writeback_count);
+    void mosaic_cache_issue_writeback(int way_id);
 };
 
 #endif

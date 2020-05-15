@@ -87,23 +87,25 @@ void CACHE::handle_fill()
         uint8_t  do_fill = 1;
 
         // is this dirty?
-        if (block[set][way].dirty) {
+        if (block[set][way].dirty) 
+        {
+            // check if the lower level WQ has enough room to keep this writeback request
+            if (lower_level) 
+            {
+                if (lower_level->get_occupancy(2, block[set][way].address) == lower_level->get_size(2, block[set][way].address)) 
+                {
+                    // lower level WQ is full, cannot replace this victim
+                    do_fill = 0;
+                    lower_level->increment_WQ_FULL(block[set][way].address);
+                    STALL[MSHR.entry[mshr_index].type]++;
 
-        // check if the lower level WQ has enough room to keep this writeback request
-        if (lower_level) {
-            if (lower_level->get_occupancy(2, block[set][way].address) == lower_level->get_size(2, block[set][way].address)) {
-
-            // lower level WQ is full, cannot replace this victim
-            do_fill = 0;
-            lower_level->increment_WQ_FULL(block[set][way].address);
-            STALL[MSHR.entry[mshr_index].type]++;
-
-            DP (if (warmup_complete[fill_cpu]) {
-                    cout << "[" << NAME << "] " << __func__ << "do_fill: " << +do_fill;
-                    cout << " lower level wq is full!" << " fill_addr: " << hex << MSHR.entry[mshr_index].address;
-                    cout << " victim_addr: " << block[set][way].tag << dec << endl; });
+                    DP (if (warmup_complete[fill_cpu]) {
+                        cout << "[" << NAME << "] " << __func__ << "do_fill: " << +do_fill;
+                        cout << " lower level wq is full!" << " fill_addr: " << hex << MSHR.entry[mshr_index].address;
+                        cout << " victim_addr: " << block[set][way].tag << dec << endl; });
                 }
-                else {
+                else 
+                {
                     PACKET writeback_packet;
 
                     writeback_packet.fill_level = fill_level << 1;
@@ -119,7 +121,8 @@ void CACHE::handle_fill()
                 }
             }
     #ifdef SANITY_CHECK
-            else {
+            else 
+            {
                 // sanity check
                 if (cache_type != IS_STLB)
                     assert(0);
@@ -220,7 +223,36 @@ void CACHE::handle_fill()
                 */
                 total_miss_latency += current_miss_latency;
             }
-    	  
+
+            // zmz modify
+            int cache_level_idx;
+            switch (cache_type)
+            {
+                case IS_L1D:
+                    cache_level_idx = LPM_L1;
+                    break;
+                case IS_L2C:
+                    cache_level_idx = LPM_L2;
+                    break;
+                case IS_LLC:
+                    cache_level_idx = LPM_L3;
+                    break;
+                default:
+                    cache_level_idx = -1;
+                    break;
+            }
+            if(cache_level_idx != -1)
+            {
+                if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+                {
+                    int start_cycle = MSHR.entry[mshr_index].cycle_enqueued;
+                    int cycle_count = current_core_cycle[fill_cpu] - MSHR.entry[mshr_index].cycle_enqueued;
+                    int cpu_id = MSHR.entry[mshr_index].cpu;
+                    // access_reg(int core_id, int cache_level, uint64_t start_cycle, uint64_t cycle_count, bool type);
+                    Mosaic_Cache_Monitor.access_reg(cpu_id, cache_level_idx, start_cycle, cycle_count, LPM_MISS_ACCESS);
+                }
+            }
+
             MSHR.remove_queue(&MSHR.entry[mshr_index]);
             MSHR.num_returned--;
 
@@ -244,6 +276,36 @@ void CACHE::handle_writeback()
         // access cache
         uint32_t set = get_set(WQ.entry[index].address);
         int way = check_hit(&WQ.entry[index]);
+
+        // zmz modify (STEP 4)
+        if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+        {
+            int cache_level_idx;
+            switch(cache_type)
+            {
+                case IS_L1D:
+                    cache_level_idx = LPM_L1;
+                    break;
+                case IS_L2C:
+                    cache_level_idx = LPM_L2;
+                    break;
+                case IS_LLC:
+                    cache_level_idx = LPM_L3;
+                    break;
+                default:
+                    cache_level_idx = -1;
+                    break;
+            }
+            if(cache_level_idx != -1)
+            {
+                int core_idx = RQ.entry[index].cpu;
+                Mosaic_Cache_Monitor.access_reg(core_idx, 
+                    cache_level_idx, 
+                    current_core_cycle[core_idx], 
+                    0, /* Since the latency of all accesses is equal or longer than the hit_latency, here we use the fake input and the mosaic_cache_monitor will justify the latency. */ 
+                    LPM_HIT_ACCESS);
+            }
+        }
         
         if (way >= 0) 
         { // writeback hit (or RFO hit for L1D)
@@ -560,6 +622,37 @@ void CACHE::handle_read()
             // access cache
             uint32_t set = get_set(RQ.entry[index].address);
             int way = check_hit(&RQ.entry[index]);
+
+            // zmz modify (STEP 4)
+            if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+            {
+                int cache_level_idx;
+                switch(cache_type)
+                {
+                    case IS_L1D:
+                        cache_level_idx = LPM_L1;
+                        break;
+                    case IS_L2C:
+                        cache_level_idx = LPM_L2;
+                        break;
+                    case IS_LLC:
+                        cache_level_idx = LPM_L3;
+                        break;
+                    default:
+                        cache_level_idx = -1;
+                        break;
+                }
+                if(cache_level_idx != -1)
+                {
+                    int core_idx = RQ.entry[index].cpu;
+                    Mosaic_Cache_Monitor.access_reg(core_idx, 
+                        cache_level_idx, 
+                        current_core_cycle[core_idx], 
+                        0, /* Since the latency of all accesses is equal or longer than the hit_latency, here we use the fake input and the mosaic_cache_monitor will justify the latency. */ 
+                        LPM_HIT_ACCESS);
+                }
+            }
+            
             
             if (way >= 0) 
             { // read hit
@@ -1108,12 +1201,41 @@ uint32_t CACHE::get_set(uint64_t address)
 
 uint32_t CACHE::get_way(uint64_t address, uint32_t set)
 {
-    for (uint32_t way=0; way<NUM_WAY; way++) {
+    // zmz modify (STEP 5)
+    int current_way_start_pos=0, current_way_end_pos=NUM_WAY;
+    if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+    {
+        switch(cache_type)
+        {
+            case IS_L1D:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L1);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L1);
+                break;
+            case IS_L2C:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L2);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L2);
+                break;
+            case IS_LLC:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L3);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L3);
+                break;
+            default:
+                current_way_start_pos = 0;
+                current_way_end_pos = NUM_WAY;
+                break;
+        }
+    }
+
+    //for (uint32_t way=0; way<NUM_WAY; way++) 
+    for(uint32_t way=current_way_start_pos; way<current_way_end_pos; way++)
+    {
         if (block[set][way].valid && (block[set][way].tag == address)) 
             return way;
     }
 
-    return NUM_WAY;
+    // zmz modify
+    //return NUM_WAY;
+    return current_way_end_pos;
 }
 
 void CACHE::fill_cache(uint32_t set, uint32_t way, PACKET *packet)
@@ -1170,16 +1292,46 @@ int CACHE::check_hit(PACKET *packet)
     uint32_t set = get_set(packet->address);
     int match_way = -1;
 
-    if (NUM_SET < set) {
+    if (NUM_SET < set) 
+    {
         cerr << "[" << NAME << "_ERROR] " << __func__ << " invalid set index: " << set << " NUM_SET: " << NUM_SET;
         cerr << " address: " << hex << packet->address << " full_addr: " << packet->full_addr << dec;
         cerr << " event: " << packet->event_cycle << endl;
         assert(0);
     }
 
+    // zmz modify (STEP 5)
+    int current_way_start_pos=0, current_way_end_pos=NUM_WAY;
+    if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+    {
+        switch(cache_type)
+        {
+            case IS_L1D:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L1);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L1);
+                break;
+            case IS_L2C:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L2);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L2);
+                break;
+            case IS_LLC:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L3);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L3);
+                break;
+            default:
+                current_way_start_pos = 0;
+                current_way_end_pos = NUM_WAY;
+                break;
+        }
+    }
+
     // hit
-    for (uint32_t way=0; way<NUM_WAY; way++) {
-        if (block[set][way].valid && (block[set][way].tag == packet->address)) {
+    // zmz modify
+    //for (uint32_t way=0; way<NUM_WAY; way++)
+    for (uint32_t way=current_way_start_pos; way<current_way_end_pos; way++)
+    {
+        if (block[set][way].valid && (block[set][way].tag == packet->address)) 
+        {
 
             match_way = way;
 
@@ -1207,9 +1359,38 @@ int CACHE::invalidate_entry(uint64_t inval_addr)
         assert(0);
     }
 
+    // zmz modify (STEP 5)
+    int current_way_start_pos=0, current_way_end_pos=NUM_WAY;
+    if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+    {
+        switch(cache_type)
+        {
+            case IS_L1D:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L1);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L1);
+                break;
+            case IS_L2C:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L2);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L2);
+                break;
+            case IS_LLC:
+                current_way_start_pos = Mosaic_Cache_Monitor.get_current_way_start_pos(LPM_L3);
+                current_way_end_pos = Mosaic_Cache_Monitor.get_current_way_end_pos(LPM_L3);
+                break;
+            default:
+                current_way_start_pos = 0;
+                current_way_end_pos = NUM_WAY;
+                break;
+        }
+    }
+
     // invalidate
-    for (uint32_t way=0; way<NUM_WAY; way++) {
-        if (block[set][way].valid && (block[set][way].tag == inval_addr)) {
+    // zmz modify
+    //for (uint32_t way=0; way<NUM_WAY; way++)
+    for (uint32_t way=current_way_start_pos; way<current_way_end_pos; way++)
+    {
+        if (block[set][way].valid && (block[set][way].tag == inval_addr)) 
+        {
 
             block[set][way].valid = 0;
 
@@ -1798,4 +1979,91 @@ uint32_t CACHE::get_size(uint8_t queue_type, uint64_t address)
 void CACHE::increment_WQ_FULL(uint64_t address)
 {
     WQ.FULL++;
+}
+
+// zmz modify
+void CACHE::resize_way(int new_way_num)
+{
+    for (uint32_t i=0; i<NUM_SET; i++) {
+            delete[] block[i];
+            block[i] = new BLOCK[new_way_num]; 
+
+            for (uint32_t j=0; j<new_way_num; j++) {
+                block[i][j].lru = j;
+            }
+        }
+}
+
+// zmz modify
+int CACHE::mosaic_cache_get_writeback_count(int way_id)
+{
+    int writeback_counter = 0;
+
+    for(int set_idx = 0; set_idx < NUM_SET; set_idx++)
+    {
+        if(block[set_idx][way_id].dirty)
+            writeback_counter++;
+    }
+
+    return writeback_counter;
+}
+
+// zmz modify
+bool CACHE::mosaic_cache_can_writeback(int writeback_count)
+{
+    if(lower_level)
+    {
+        if(lower_level->get_size(2, block[0][0].address) 
+            - lower_level->get_occupancy(2, block[0][0].address < writeback_count))
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+    else
+    {
+        if (cache_type != IS_STLB)
+            assert(0);
+        else
+        {
+            cout << "This function is not for STLB!"<<endl;
+            assert(0);
+        }
+    }
+}
+
+// zmz modify
+void CACHE::mosaic_cache_issue_writeback(int way_id)
+{   
+    if(lower_level)
+    {
+        for(int set_idx = 0; set_idx < NUM_SET; set_idx++)
+        {
+            PACKET writeback_packet;
+
+            writeback_packet.fill_level = fill_level << 1;
+            writeback_packet.cpu = block[set_idx][way_id].cpu;
+            writeback_packet.address = block[set_idx][way_id].address;
+            writeback_packet.full_addr = block[set_idx][way_id].full_addr;
+            writeback_packet.data = block[set_idx][way_id].data;
+            writeback_packet.instr_id = block[set_idx][way_id].instr_id;
+            writeback_packet.ip = 0; // writeback does not have ip
+            writeback_packet.type = WRITEBACK;
+            writeback_packet.event_cycle = current_core_cycle[block[set_idx][way_id].cpu];
+            lower_level->add_wq(&writeback_packet);
+        }
+    }
+    else
+    {
+        if (cache_type != IS_STLB)
+            assert(0);
+        else
+        {
+            cout << "This function is not for STLB!"<<endl;
+            assert(0);
+        }
+    }
 }

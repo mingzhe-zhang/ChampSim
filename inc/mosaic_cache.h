@@ -10,10 +10,9 @@
 // 		2-5 set_mosaic_cache_info() (you can only reset adaptive info with set_adaptive())
 // 		2-6 init_mosaic_cache()
 // STEP 3: get information for host simulator initilization with get_max_way_num()
-// STEP 4: identify the work mode during the runtime of host simulator with get_work_mode() 
+// STEP 4: register cache accesses during the runtime, using access_reg()
 // STEP 5: dynamic way information for each cache access by using get_current_way_num(), 
-// 		   get_current_way_start_pos() or get_current_way_end_pos(), then register the cache access
-// 		   by using access_reg()
+// 		   get_current_way_start_pos() or get_current_way_end_pos().
 // STEP 6: Periodically check the mode of mosaic cache
 // 	 	6-1 For motivation mode, periodically output the lpmr by using get_lpmr(); 
 // 	 	6-2 For other modes, check if the mosaic cache needs reconfig by using need_check(), if the 
@@ -26,7 +25,7 @@
 // ====================================
 // ======== USAGE END, ENJOY! =========
 // ====================================
-		   
+#pragma once		 
 #ifndef MOSAIC_CACHE_H
 #define MOSAIC_CACHE_H
 
@@ -65,7 +64,9 @@ public:
 
 	void forward_window(uint64_t current_cycle);
 
-
+	int get_last_operation(){return last_operation;};
+	
+	bool RollBack();
 
 	int get_current_way_num(int cache_level);
 	int get_current_way_start_pos(int cache_level);
@@ -100,6 +101,8 @@ private:
 	uint64_t last_check_cycle;
 
 	struct mosaic_cache_info_t *mosaic_cache_info;
+	// for rollback
+	struct mosaic_cache_info_t *cache_info_snapshot;
 
 	// mosaic cache configuration
 	
@@ -122,9 +125,16 @@ private:
 	bool _reconfig_l1_to_l2();
 	bool _reconfig_l2_to_l1();
 	bool _reconfig_l2_to_l3();
-	bool _reconfig_l3_to_l2();
+	bool _reconfig_l3_to_l2(); 
 
-
+	// for rollback
+	void _snapshot();
+	int last_operation;	// the last operation type
+						// 0: none
+						// 1: l1 to l2
+						// 2: l2 to l1
+						// 3: l2 to l3
+						// 4: l3 to l2
 
 	// for statistics
 	int** _writeback_counter;
@@ -135,5 +145,7 @@ private:
 	int _l3_to_l2_counter;
 	int _total_reconfig_counter;
 };
+
+static Mosaic_Cache Mosaic_Cache_Monitor(NUM_CPUS, 3);
 
 #endif
