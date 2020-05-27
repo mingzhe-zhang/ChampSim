@@ -1126,14 +1126,17 @@ int main(int argc, char** argv)
             }
             case 1: /* motivation mode */
             {
-                cout<<"[MOTIVATION] Current Cycle: "<<current_core_cycle[0]<<endl;
-                for(int i=0; i<NUM_CPUS; i++)
+                if(Mosaic_Cache_Monitor.need_check(current_core_cycle[0]))
                 {
-                    cout<<" Core "<<i
-                        <<": L1="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L1)
-                        <<", L2="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L2)
-                        <<", L3="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L3)
-                        <<endl;
+                    cout<<"[MOTIVATION] Current Cycle: "<<current_core_cycle[0]<<endl;
+                    for(int i=0; i<NUM_CPUS; i++)
+                    {
+                        cout<<" Core "<<i
+                            <<": L1="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L1)
+                            <<", L2="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L2)
+                            <<", L3="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L3)
+                            <<endl;
+                    }
                 }
                 break;
             }
