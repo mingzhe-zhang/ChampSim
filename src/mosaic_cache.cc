@@ -118,10 +118,12 @@ bool Mosaic_Cache::init_mosaic_cache()
 	{
 		if(mosaic_cache_info[cache_level_idx].need_set == true)
 			return false;
-	}
+		if(mosaic_cache_info[cache_level_idx].ratio_of_lower_level == 0)
+		{
+			cout<<"[ERR] l"<<(cache_level_idx+1)<<".ratio_of_lower_level = 0!"<<endl;
+			return false;
+		}
 
-	for(int cache_level_idx = 0; cache_level_idx < LPM_L3; cache_level_idx++)
-	{
 		if(cache_level_idx == LPM_L1)
 		{
 			mosaic_cache_info[cache_level_idx].max_way_num =
@@ -143,6 +145,7 @@ bool Mosaic_Cache::init_mosaic_cache()
 				+ mosaic_cache_info[cache_level_idx-1].adaptive_way_num * core_num 
 				/ mosaic_cache_info[cache_level_idx-1].ratio_of_lower_level; 
 		}
+		cout<<"init cache l"<<cache_level_idx<<endl;
 		mosaic_cache_info[cache_level_idx].need_init = false;
 	}
 	return true;
@@ -212,10 +215,14 @@ bool Mosaic_Cache::need_check(uint64_t current_cycle)
 	if(mosaic_cache_info[LPM_L1].need_init == true
 		|| mosaic_cache_info[LPM_L2].need_init == true
 		|| mosaic_cache_info[LPM_L3].need_init == true)
+	{
+		cout<<"not ready yet. l1:"<<mosaic_cache_info[LPM_L1].need_init<<" l2:"<<mosaic_cache_info[LPM_L2].need_init<<" l3:"<<mosaic_cache_info[LPM_L3].need_init<<endl;
 		return false;
+	}
 
 	if(current_cycle < (last_check_cycle + check_period))
 	{
+		cout<<"shikeweidao!"<<endl;
 		return false;
 	}
 	else

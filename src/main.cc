@@ -617,6 +617,10 @@ int main(int argc, char** argv)
 
     cout << endl << "*** ChampSim Multicore Out-of-Order Simulator ***" << endl << endl;
 
+    for(int i = 0; i < argc; i++)
+    {
+        cout << argv[i] << endl;
+    }
     // initialize knobs
     uint8_t show_heartbeat = 1;
 
@@ -651,13 +655,15 @@ int main(int argc, char** argv)
 
         int option_index = 0;
 
-        c = getopt_long_only(argc, argv, "wihsb", long_options, &option_index);
+        cout<<"argc="<<argc<<", argv="<<argv[option_index]<<", option_index="<<option_index<<endl;
+        c = getopt_long_only(argc, argv, /*"wihsb"*/" ", long_options, &option_index);
 
         // no more option characters
         if (c == -1)
             break;
 
         int traces_encountered = 0;
+        cout<<(char)c<<endl;
 
         switch(c) {
             case 'w':
@@ -689,7 +695,7 @@ int main(int argc, char** argv)
                 Mosaic_Cache_Monitor.set_work_mode(atoi(optarg));
                 break;
             case 'v': /*zmz modify*/
-                Mosaic_Cache_Monitor.set_work_mode(atoi(optarg));
+                Mosaic_Cache_Monitor.set_writeback_mode(atoi(optarg));
                 break;
             case 'x': /*zmz modify*/
                 mosaic_cache_adaptive_way_num[LPM_L1] = atoi(optarg);
@@ -711,26 +717,29 @@ int main(int argc, char** argv)
                 break;
             case 'j': /*zmz modify*/
                 mosaic_cache_ratio[LPM_L1] = atoi(optarg);
+                cout <<"ratio_l1="<<mosaic_cache_ratio[LPM_L1]<<endl;
                 break;
             case 'k': /*zmz modify*/
                 mosaic_cache_ratio[LPM_L2] = atoi(optarg);
+                cout << "ratio_l2="<<mosaic_cache_ratio[LPM_L2]<<endl;
                 break;
             case 'l': /*zmz modify*/
                 mosaic_cache_ratio[LPM_L3] = atoi(optarg);
+                cout<< "ratio_l3"<<mosaic_cache_ratio[LPM_L3]<<endl;
                 break;
             default:
                 abort();
         }
 
-        if (traces_encountered == 1)
-            break;
+        // if (traces_encountered == 1)
+        //     break;
     }
 
     // zmz modify
     if(Mosaic_Cache_Monitor.get_work_mode() != 0)
     {
         bool core_set_flag = true;
-        for(int cache_level_idx = 0; cache_level_idx < 3; cache_level_idx++)
+        for(int cache_level_idx = 0; cache_level_idx <= LPM_L3; cache_level_idx++)
         {
             int way_num = -1;
             int latency = -1;
