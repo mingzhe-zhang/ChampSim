@@ -9,6 +9,8 @@
 int mosaic_cache_adaptive_way_num[3];
 int mosaic_cache_reconfig_threshold[3];
 int mosaic_cache_ratio[3];
+extern Mosaic_Cache Mosaic_Cache_Monitor;
+
 // zmz modify end
 
 uint8_t warmup_complete[NUM_CPUS], 
@@ -608,6 +610,8 @@ void cpu_l1i_prefetcher_cache_fill(uint32_t cpu_num, uint64_t addr, uint32_t set
 
 int main(int argc, char** argv)
 {
+    // zmz modify
+    Mosaic_Cache_Monitor.Mosaic_Cache_Global_Init(NUM_CPUS, 3);
 	// interrupt signal hanlder
 	struct sigaction sigIntHandler;
 	sigIntHandler.sa_handler = signal_handler;
@@ -617,10 +621,6 @@ int main(int argc, char** argv)
 
     cout << endl << "*** ChampSim Multicore Out-of-Order Simulator ***" << endl << endl;
 
-    for(int i = 0; i < argc; i++)
-    {
-        cout << argv[i] << endl;
-    }
     // initialize knobs
     uint8_t show_heartbeat = 1;
 
@@ -655,7 +655,7 @@ int main(int argc, char** argv)
 
         int option_index = 0;
 
-        cout<<"argc="<<argc<<", argv="<<argv[option_index]<<", option_index="<<option_index<<endl;
+        //cout<<"argc="<<argc<<", argv="<<argv[option_index]<<", option_index="<<option_index<<endl;
         c = getopt_long_only(argc, argv, /*"wihsb"*/" ", long_options, &option_index);
 
         // no more option characters
@@ -663,7 +663,7 @@ int main(int argc, char** argv)
             break;
 
         int traces_encountered = 0;
-        cout<<(char)c<<endl;
+        //cout<<(char)c<<endl;
 
         switch(c) {
             case 'w':
@@ -717,15 +717,15 @@ int main(int argc, char** argv)
                 break;
             case 'j': /*zmz modify*/
                 mosaic_cache_ratio[LPM_L1] = atoi(optarg);
-                cout <<"ratio_l1="<<mosaic_cache_ratio[LPM_L1]<<endl;
+                //cout <<"ratio_l1="<<mosaic_cache_ratio[LPM_L1]<<endl;
                 break;
             case 'k': /*zmz modify*/
                 mosaic_cache_ratio[LPM_L2] = atoi(optarg);
-                cout << "ratio_l2="<<mosaic_cache_ratio[LPM_L2]<<endl;
+                //cout << "ratio_l2="<<mosaic_cache_ratio[LPM_L2]<<endl;
                 break;
             case 'l': /*zmz modify*/
                 mosaic_cache_ratio[LPM_L3] = atoi(optarg);
-                cout<< "ratio_l3"<<mosaic_cache_ratio[LPM_L3]<<endl;
+                //cout<< "ratio_l3"<<mosaic_cache_ratio[LPM_L3]<<endl;
                 break;
             default:
                 abort();
@@ -1146,6 +1146,7 @@ int main(int argc, char** argv)
                             <<", L3="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L3)
                             <<endl;
                     }
+                    Mosaic_Cache_Monitor.forward_window(current_core_cycle[0]);
                 }
                 break;
             }

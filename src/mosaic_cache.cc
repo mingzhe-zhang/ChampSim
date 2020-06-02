@@ -1,6 +1,13 @@
 #include "mosaic_cache.h"
 
+extern Mosaic_Cache Mosaic_Cache_Monitor;
+
 Mosaic_Cache::Mosaic_Cache(int new_core_num, int new_cache_level_count)
+{
+	Mosaic_Cache_Global_Init(new_core_num, new_cache_level_count);
+}
+
+void Mosaic_Cache::Mosaic_Cache_Global_Init(int new_core_num, int new_cache_level_count)
 {
 	// init system and cache configuration
 	core_num = new_core_num;
@@ -69,6 +76,7 @@ bool Mosaic_Cache::set_work_mode(int new_mode)
 	if(new_mode < 0 || new_mode > 4)
 		return false;
 	work_mode = new_mode;
+	cout<<"addr work_mode="<<&work_mode<<", new_mode="<<new_mode<<endl;
 	return true;
 }
 
@@ -222,7 +230,7 @@ bool Mosaic_Cache::need_check(uint64_t current_cycle)
 
 	if(current_cycle < (last_check_cycle + check_period))
 	{
-		cout<<"shikeweidao!"<<endl;
+		//cout<<"shikeweidao!"<<endl;
 		return false;
 	}
 	else
@@ -421,6 +429,7 @@ bool Mosaic_Cache::reconfig(uint64_t current_cycle)
 
 bool Mosaic_Cache::access_reg(int core_id, int cache_level, uint64_t start_cycle, uint64_t cycle_count, bool type)
 {
+	cout<<"Mosaic_Cache::access_reg"<<endl;
 	if(core_id < 0 || core_id >= core_num
 		|| cache_level < LPM_L1 || cache_level > LPM_L3
 		|| type < LPM_HIT_ACCESS || type > LPM_MISS_ACCESS
@@ -444,8 +453,11 @@ bool Mosaic_Cache::access_reg(int core_id, int cache_level, uint64_t start_cycle
 	
 float Mosaic_Cache::get_lpmr(int core_id, int cache_level)
 {
+	// for test
+	//cout<<"core_id="<<core_id<<", core_num="<<core_num<<", cache_level="<<cache_level<<endl;
 	if(core_id < 0 || core_id >= core_num || cache_level < LPM_L1 || cache_level > LPM_L3)
 	{
+		//cout<<"fault"<<endl;
 		return 0; // fault
 	}
 

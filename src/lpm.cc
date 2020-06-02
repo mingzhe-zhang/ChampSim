@@ -139,6 +139,8 @@ bool LPM::update_lpmr(int cache_level)
 			multiplex_ratio_miss_cycle_active_cycle *= ratio_miss_cycle_active_cycle[idx];
 		}
 	}
+	// for test
+	cout << "inst_count="<<inst_count<<", cycle_count="<<cycle_count<<", f_mem="<<f_mem<<", access_count="<<access_count<<", active_cycle="<<active_cycle<<", multiplex_ratio_miss_cycle_active_cycle="<<multiplex_ratio_miss_cycle_active_cycle<<endl;
 	
 	lpmr[cache_level] = ((float)inst_count) / ((float)cycle_count) 
 			* f_mem * ((float)access_count) / ((float)active_cycle[0]) 
@@ -202,7 +204,8 @@ bool LPM::access_reg(int cache_level, uint64_t start_cycle, uint64_t cycle_count
 			cycle_stat[cache_level][cycle_idx].miss_count++;
 		}
 	}
-
+	// for test
+	cout<<"lpm need update"<<endl;
 	need_update[cache_level] = true;
 	return true;
 }
@@ -211,10 +214,14 @@ float LPM::get_lpmr(int cache_level)
 {
 	if(!(cache_level < cache_level_count))
 	{
+		// for test
+		//cout<<"LPM::get_lpmr fault"<<endl;
 		return 0; // fault
 	}
 	if(need_update[cache_level]==true)
 	{
+		// for test
+		cout << "LPM::get_lpmr update"<<endl;
 		update_lpmr(cache_level);
 	}
 	return lpmr[cache_level];

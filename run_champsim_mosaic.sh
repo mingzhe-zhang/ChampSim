@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$#" -lt 4 ]; then
+if [ "$#" -gt 18 ]; then
     echo "Illegal number of parameters"
     echo "Usage: ./run_champsim.sh [BINARY] [N_WARM] [N_SIM] [TRACE] [MOSAIC_CACHE_OPTIONS] [OPTION]"
     echo "MOSAIC_CACHE_OPTIONS: MOSAIC_CACHE_WORK_MODE"
@@ -24,8 +24,16 @@ BINARY=${1}
 N_WARM=${2}
 N_SIM=${3}
 TRACE=${4}
-MOSAIC_CACHE_OPT=${5}" "${6}" "${7}" "${8}" "${9}" "${10}" "${11}" "${12}" "${13}" "${14}" "${15}" "${16}" "${17}
+# MOSAIC_CACHE_OPT=${5}" "${6}" "${7}" "${8}" "${9}" "${10}" "${11}" "${12}" "${13}" "${14}" "${15}" "${16}" "${17}
+MOSAIC_CACHE_OPT="-mosaic_cache_work_mode "${5}" -mosaic_cache_writeback_mode "${6}" -mosaic_cache_target_delta "${7}
+MOSAIC_CACHE_OPT=${MOSAIC_CACHE_OPT}" -mosaic_cache_check_period "${8}
+MOSAIC_CACHE_OPT=${MOSAIC_CACHE_OPT}" -mosaic_cache_l1_adaptive_way_num "${9}" -mosaic_cache_l1_reconfig_threshold "${10}" -mosaic_cache_l1_ratio "${11}
+MOSAIC_CACHE_OPT=${MOSAIC_CACHE_OPT}" -mosaic_cache_l2_adaptive_way_num "${12}" -mosaic_cache_l2_reconfig_threshold "${13}" -mosaic_cache_l2_ratio "${14}
+MOSAIC_CACHE_OPT=${MOSAIC_CACHE_OPT}" -mosaic_cache_l3_adaptive_way_num "${15}" -mosaic_cache_l3_reconfig_threshold "${16}" -mosaic_cache_l3_ratio "${17}
 OPTION=${18}
+
+echo ${MOSAIC_CACHE_OPT}
+echo ${OPTION}
 
 # Sanity check
 if [ -z $TRACE_DIR ] || [ ! -d "$TRACE_DIR" ] ; then

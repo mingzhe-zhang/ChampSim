@@ -241,8 +241,11 @@ void CACHE::handle_fill()
                     cache_level_idx = -1;
                     break;
             }
+
             if(cache_level_idx != -1)
             {
+                // for test
+                cout<<"access_reg from fill. cache_level_idx: "<<cache_level_idx<<", work_mode="<<Mosaic_Cache_Monitor.get_work_mode()<<endl;
                 if(Mosaic_Cache_Monitor.get_work_mode() != 0)
                 {
                     int start_cycle = MSHR.entry[mshr_index].cycle_enqueued;
@@ -296,9 +299,12 @@ void CACHE::handle_writeback()
                     cache_level_idx = -1;
                     break;
             }
+                // for test
+                cout<<"access_reg from writeback. cache_level_idx: "<<cache_level_idx<<endl;
             if(cache_level_idx != -1)
             {
                 int core_idx = RQ.entry[index].cpu;
+
                 Mosaic_Cache_Monitor.access_reg(core_idx, 
                     cache_level_idx, 
                     current_core_cycle[core_idx], 
@@ -642,6 +648,8 @@ void CACHE::handle_read()
                         cache_level_idx = -1;
                         break;
                 }
+                // for test
+                cout<<"access_reg from read. cache_level_idx: "<<cache_level_idx<<endl;
                 if(cache_level_idx != -1)
                 {
                     int core_idx = RQ.entry[index].cpu;

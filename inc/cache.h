@@ -5,6 +5,7 @@
 
 // zmz modify
 #include "mosaic_cache.h"
+extern Mosaic_Cache Mosaic_Cache_Monitor;
 
 // PAGE
 extern uint32_t PAGE_TABLE_LATENCY, SWAP_LATENCY;

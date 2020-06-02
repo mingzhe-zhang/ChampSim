@@ -51,6 +51,8 @@ class Mosaic_Cache
 {
 public:
 	Mosaic_Cache(int new_core_num, int cache_level_count);
+	Mosaic_Cache(){};
+	void Mosaic_Cache_Global_Init(int new_core_num, int cache_level_count);
 	~Mosaic_Cache();
 
 	bool set_work_mode(int new_mode);
@@ -74,7 +76,7 @@ public:
 
 	int get_max_way_num(int cache_level);
 	int get_writeback_mode(){return writeback_mode;};
-	int get_work_mode(){return work_mode;};
+	int get_work_mode(){cout<<"addr work_mode"<<&work_mode<<endl;return work_mode;};
 
 	bool need_check(uint64_t current_cycle);
 	bool need_forward(uint64_t current_cycle);
@@ -106,21 +108,21 @@ private:
 
 	// mosaic cache configuration
 	
-	float target_delta; 	// delta: the ratio of memory access time over compute time, 
+	static float target_delta; 	// delta: the ratio of memory access time over compute time, 
 							// the smaller delta indicates better performance
 	
-	uint64_t check_period; 	// mosaic cache periodically checks whether the cache hierarchy 
+	static uint64_t check_period; 	// mosaic cache periodically checks whether the cache hierarchy 
 						   	// requires reconfiguration, the 'check period' indicates the 
 						   	// cycle number between two checkings.
 						 
-	int work_mode; 	// the working mode of mosaic cache
+	static int work_mode; 	// the working mode of mosaic cache
 					// 0: off
 					// 1: motivation mode
 					// 2: only for l1-l2
 					// 3: only for l2-l3
 					// 4: for l1-l2-l3
 
-	int writeback_mode;	// 0: directly writeback, 1: non-writeback
+	static int writeback_mode;	// 0: directly writeback, 1: non-writeback
 
 	bool _reconfig_l1_to_l2();
 	bool _reconfig_l2_to_l1();
@@ -146,6 +148,6 @@ private:
 	int _total_reconfig_counter;
 };
 
-static Mosaic_Cache Mosaic_Cache_Monitor(NUM_CPUS, 3);
+extern Mosaic_Cache Mosaic_Cache_Monitor; // = new Mosaic_Cache(NUM_CPUS, 3);
 
 #endif
