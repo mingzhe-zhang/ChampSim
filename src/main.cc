@@ -9,7 +9,14 @@
 int mosaic_cache_adaptive_way_num[3];
 int mosaic_cache_reconfig_threshold[3];
 int mosaic_cache_ratio[3];
-extern Mosaic_Cache Mosaic_Cache_Monitor;
+
+Mosaic_Cache& Get_Instance()
+{
+    static Mosaic_Cache Mosaic_Cache_Monitor; // = new Mosaic_Cache(NUM_CPUS, 3);
+    return Mosaic_Cache_Monitor;
+}
+
+Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
 
 // zmz modify end
 
@@ -37,6 +44,7 @@ uint64_t previous_ppage, num_adjacent_page, num_cl[NUM_CPUS], allocated_pages, n
 // WARNING: THE FOLLOWING FUNCTIONS ARE FOR MOSAIC CACHE ONLY!
 void _mosaic_cache_solve_op(int op_id, int origin_way_pos)
 {
+    //Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
     int start_pos, end_pos;
     CACHE* cache_ptr = NULL;
     int writeback_cache_level;
@@ -611,6 +619,7 @@ void cpu_l1i_prefetcher_cache_fill(uint32_t cpu_num, uint64_t addr, uint32_t set
 int main(int argc, char** argv)
 {
     // zmz modify
+    //Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
     Mosaic_Cache_Monitor.Mosaic_Cache_Global_Init(NUM_CPUS, 3);
 	// interrupt signal hanlder
 	struct sigaction sigIntHandler;
@@ -1138,13 +1147,16 @@ int main(int argc, char** argv)
                 if(Mosaic_Cache_Monitor.need_check(current_core_cycle[0]))
                 {
                     cout<<"[MOTIVATION] Current Cycle: "<<current_core_cycle[0]<<endl;
+
                     for(int i=0; i<NUM_CPUS; i++)
                     {
+                        int inst_num = ooo_cpu[i].num_retired;
                         cout<<" Core "<<i
-                            <<": L1="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L1)
-                            <<", L2="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L2)
-                            <<", L3="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L3)
+                            <<": L1="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L1, inst_num, current_core_cycle[i])
+                            <<", L2="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L2, inst_num, current_core_cycle[i])
+                            <<", L3="<<Mosaic_Cache_Monitor.get_lpmr(i, LPM_L3, inst_num, current_core_cycle[i])
                             <<endl;
+                        Mosaic_Cache_Monitor.set_last_inst_num(i, inst_num);
                     }
                     Mosaic_Cache_Monitor.forward_window(current_core_cycle[0]);
                 }

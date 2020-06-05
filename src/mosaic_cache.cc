@@ -76,7 +76,7 @@ bool Mosaic_Cache::set_work_mode(int new_mode)
 	if(new_mode < 0 || new_mode > 4)
 		return false;
 	work_mode = new_mode;
-	cout<<"addr work_mode="<<&work_mode<<", new_mode="<<new_mode<<endl;
+	//cout<<"addr work_mode="<<&work_mode<<", new_mode="<<new_mode<<endl;
 	return true;
 }
 
@@ -96,6 +96,11 @@ void Mosaic_Cache::set_delta(float new_delta)
 void Mosaic_Cache::set_check_period(uint64_t new_check_period)
 {
 	check_period = new_check_period;
+	for(int core_idx = 0; core_idx < core_num; core_idx++)
+	{
+		lpm_monitor[core_idx].set_cycle_count(check_period);
+		lpm_monitor[core_idx].set_window_width(check_period);
+	}
 }
 
 bool Mosaic_Cache::set_mosaic_cache_info(int cache_level, int way_num, int adaptive_way_num, 
@@ -427,31 +432,39 @@ bool Mosaic_Cache::reconfig(uint64_t current_cycle)
 	return false;
 }
 
-bool Mosaic_Cache::access_reg(int core_id, int cache_level, uint64_t start_cycle, uint64_t cycle_count, bool type)
+bool Mosaic_Cache::access_reg(int core_id, int cache_level, uint64_t event_cycle, int type)
 {
-	cout<<"Mosaic_Cache::access_reg"<<endl;
+	//cout<<"Mosaic_Cache::access_reg"<<endl;
 	if(core_id < 0 || core_id >= core_num
 		|| cache_level < LPM_L1 || cache_level > LPM_L3
-		|| type < LPM_HIT_ACCESS || type > LPM_MISS_ACCESS
-		|| start_cycle < last_check_cycle)
+		|| type < LPM_ACCESS_START || type > LPM_ACCESS_END_EXTEND )
 	{
 		return false;
 	}
 
-	if(type == LPM_HIT_ACCESS)
+	if(type == LPM_ACCESS_START)
 	{
-		cycle_count = mosaic_cache_info[cache_level].latency;
+		int cycle_count = mosaic_cache_info[cache_level].latency;
+		lpm_monitor[core_id].access_reg(cache_level, event_cycle, cycle_count, LPM_ACCESS_START);
 	}
-	else if(start_cycle - last_check_cycle + cycle_count >= check_period)
+	else if(type == LPM_ACCESS_END) 
 	{
-		cycle_count = check_period - (start_cycle - last_check_cycle);
+		if(event_cycle >= last_check_cycle + check_period)
+		{
+			event_cycle = last_check_cycle + check_period - 1;
+		}
+
+		lpm_monitor[core_id].access_reg(cache_level, event_cycle, NULL, LPM_ACCESS_END);
+	}
+	else // LPM_ACCESS_END_EXTEND
+	{
+		lpm_monitor[core_id].access_reg(cache_level, event_cycle, NULL, LPM_ACCESS_END_EXTEND);
 	}
 
-	lpm_monitor[core_id].access_reg(cache_level, start_cycle, cycle_count, type);
 	return true;
 }
 	
-float Mosaic_Cache::get_lpmr(int core_id, int cache_level)
+float Mosaic_Cache::get_lpmr(int core_id, int cache_level, int inst_num, uint64_t current_cycle)
 {
 	// for test
 	//cout<<"core_id="<<core_id<<", core_num="<<core_num<<", cache_level="<<cache_level<<endl;
@@ -461,7 +474,7 @@ float Mosaic_Cache::get_lpmr(int core_id, int cache_level)
 		return 0; // fault
 	}
 
-	return lpm_monitor[core_id].get_lpmr(cache_level);
+	return lpm_monitor[core_id].get_lpmr(cache_level, inst_num, current_cycle);
 }
 
 void Mosaic_Cache::add_writeback(int core_id, int cache_level, int writeback_count)
@@ -678,6 +691,11 @@ void Mosaic_Cache::forward_window(uint64_t current_cycle)
 	{
 		lpm_monitor[core_idx].reset(current_cycle);
 	}
+}
+
+void Mosaic_Cache::set_last_inst_num(int core_id, uint64_t inst_num)
+{
+	lpm_monitor[core_id].set_last_inst_num(inst_num);
 }
 
 bool Mosaic_Cache::RollBack()

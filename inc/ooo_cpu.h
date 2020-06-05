@@ -13,14 +13,14 @@
 using namespace std;
 
 // CORE PROCESSOR
-#define FETCH_WIDTH 6
+#define FETCH_WIDTH 12
 #define DECODE_WIDTH 6
 #define EXEC_WIDTH 6
-#define LQ_WIDTH 2
+#define LQ_WIDTH 42
 #define SQ_WIDTH 2
 #define RETIRE_WIDTH 4
 #define SCHEDULER_SIZE 128
-#define BRANCH_MISPREDICT_PENALTY 1
+#define BRANCH_MISPREDICT_PENALTY 4
 //#define SCHEDULING_LATENCY 0
 //#define EXEC_LATENCY 0
 //#define DECODE_LATENCY 2

@@ -1,4 +1,5 @@
 #include "cache.h"
+extern Mosaic_Cache Mosaic_Cache_Monitor;
 
 uint32_t CACHE::find_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type)
 {
@@ -19,6 +20,7 @@ void CACHE::update_replacement_state(uint32_t cpu, uint32_t set, uint32_t way, u
 uint32_t CACHE::lru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const BLOCK *current_set, uint64_t ip, uint64_t full_addr, uint32_t type)
 {
     // zmz modify (STEP 5)
+    //Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
     int current_way_start_pos=0, current_way_end_pos=NUM_WAY;
     if(Mosaic_Cache_Monitor.get_work_mode() != 0)
     {
@@ -95,6 +97,7 @@ uint32_t CACHE::lru_victim(uint32_t cpu, uint64_t instr_id, uint32_t set, const 
 void CACHE::lru_update(uint32_t set, uint32_t way)
 {
     // zmz modify (STEP 5)
+    //Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
     int current_way_start_pos=0, current_way_end_pos=NUM_WAY;
     if(Mosaic_Cache_Monitor.get_work_mode() != 0)
     {

@@ -65,6 +65,7 @@ public:
 	bool init_mosaic_cache();
 
 	void forward_window(uint64_t current_cycle);
+	void set_last_inst_num(int core_id, uint64_t inst_num);
 
 	int get_last_operation(){return last_operation;};
 	
@@ -76,16 +77,19 @@ public:
 
 	int get_max_way_num(int cache_level);
 	int get_writeback_mode(){return writeback_mode;};
-	int get_work_mode(){cout<<"addr work_mode"<<&work_mode<<endl;return work_mode;};
+	int get_work_mode(){return work_mode;};
+	uint64_t get_last_check_cycle(){return last_check_cycle;};
+
+	int get_hit_latency(int cache_level_idx){return mosaic_cache_info[cache_level_idx].latency;};
 
 	bool need_check(uint64_t current_cycle);
 	bool need_forward(uint64_t current_cycle);
 
 	bool reconfig(uint64_t current_cycle); 
 
-	bool access_reg(int core_id, int cache_level, uint64_t start_cycle, uint64_t cycle_count, bool type);
+	bool access_reg(int core_id, int cache_level, uint64_t event_cycle, int type);
 	
-	float get_lpmr(int core_id, int cache_level);
+	float get_lpmr(int core_id, int cache_level, int inst_num, uint64_t current_cycle);
 
 	// for statistics
 	void add_writeback(int core_id, int cache_level, int writeback_count);
@@ -108,21 +112,21 @@ private:
 
 	// mosaic cache configuration
 	
-	static float target_delta; 	// delta: the ratio of memory access time over compute time, 
+	float target_delta; 	// delta: the ratio of memory access time over compute time, 
 							// the smaller delta indicates better performance
 	
-	static uint64_t check_period; 	// mosaic cache periodically checks whether the cache hierarchy 
+	uint64_t check_period; 	// mosaic cache periodically checks whether the cache hierarchy 
 						   	// requires reconfiguration, the 'check period' indicates the 
 						   	// cycle number between two checkings.
 						 
-	static int work_mode; 	// the working mode of mosaic cache
+	int work_mode; 	// the working mode of mosaic cache
 					// 0: off
 					// 1: motivation mode
 					// 2: only for l1-l2
 					// 3: only for l2-l3
 					// 4: for l1-l2-l3
 
-	static int writeback_mode;	// 0: directly writeback, 1: non-writeback
+	int writeback_mode;	// 0: directly writeback, 1: non-writeback
 
 	bool _reconfig_l1_to_l2();
 	bool _reconfig_l2_to_l1();
@@ -148,6 +152,12 @@ private:
 	int _total_reconfig_counter;
 };
 
-extern Mosaic_Cache Mosaic_Cache_Monitor; // = new Mosaic_Cache(NUM_CPUS, 3);
+// Mosaic_Cache& Get_Instance()
+// {
+// 	static Mosaic_Cache Mosaic_Cache_Monitor; // = new Mosaic_Cache(NUM_CPUS, 3);
+// 	return Mosaic_Cache_Monitor;
+// }
+
+//Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
 
 #endif

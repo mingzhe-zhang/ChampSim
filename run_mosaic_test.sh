@@ -6,8 +6,8 @@ WRITEBACK_MODE=${3}
 TARGET_DELTA=${4}
 CHECK_PREIOD=${5}
 
-FF_INST=1 #in millions
-SIM_INST=1 #in millions
+FF_INST=100 #in millions
+SIM_INST=20 #in millions
 
 ADPAT_WAY_CFG=(0 8 1) # l1, l2, l3
 RECONFIG_THRESHOLD_CFG=(1 1 1) # l1, l2, l3

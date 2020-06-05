@@ -8,8 +8,9 @@
 #define LPM_L3 2
 // Add new macro as LPM_Ln if there are more cache hierarchies
 
-#define LPM_HIT_ACCESS 0
-#define LPM_MISS_ACCESS 1
+#define LPM_ACCESS_START 0
+#define LPM_ACCESS_END 1
+#define LPM_ACCESS_END_EXTEND 2
 
 struct cycle_stat_t 
 {
@@ -26,12 +27,15 @@ public:
 
 	void init_LPM(int total_cache_level, float delta, uint64_t new_window_width);
 	void reset(uint64_t new_start_cycle);
-	bool update_lpmr(int cache_level);
+	bool update_lpmr(int cache_level, int inst_num, uint64_t current_cycle);
 	bool check_perf_match(int cache_level);
-	bool access_reg(int cache_level, uint64_t start_cycle, uint64_t cycle_count, bool type);
-	float get_lpmr(int cache_level);
+	bool access_reg(int cache_level, uint64_t event_cycle, uint64_t hit_latency, int type);
+	float get_lpmr(int cache_level, int inst_num, uint64_t current_cycle);
 
 	void set_delta(float delta){ratio_memory_compute = delta;};
+	void set_cycle_count(int new_cycle_count){cout<<"cycle count="<<new_cycle_count; cycle_count = new_cycle_count;};
+	void set_last_inst_num(int inst_num){last_inst_num = inst_num;};
+	void set_window_width(uint64_t new_window_width);
 
 private:
 	int cache_level_count; 
@@ -46,10 +50,11 @@ private:
 	float* lpmr; // layer performance matching ratio of level i
 	bool* need_update; // indicate whether the LPMR of the cache level requires update
 
+	int last_inst_num; // instruction count when last access_reg() is accessed
 	int inst_count; // IC: instruction count
 	int cycle_count; // n: total number of CPU cycles
 	float f_mem; // f_mem: average number of memory accesses per instrction
-	int access_count; // total number of memory access
+	int* access_count; // total number of memory access
 
 	uint64_t window_start_cycle;
 	uint64_t window_width;

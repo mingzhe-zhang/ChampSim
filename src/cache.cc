@@ -73,6 +73,36 @@ void CACHE::handle_fill()
             {
                 uint64_t current_miss_latency = (current_core_cycle[fill_cpu] - MSHR.entry[mshr_index].cycle_enqueued);
                 total_miss_latency += current_miss_latency;
+
+                // zmz modify
+                int cache_level_idx;
+                switch (cache_type)
+                {
+                    case IS_L1D:
+                        cache_level_idx = LPM_L1;
+                        break;
+                    case IS_L2C:
+                        cache_level_idx = LPM_L2;
+                        break;
+                    case IS_LLC:
+                        cache_level_idx = LPM_L3;
+                        break;
+                    default:
+                        cache_level_idx = -1;
+                        break;
+                }
+                
+                if(cache_level_idx != -1)
+                {
+                    if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+                    {
+                        int start_cycle = MSHR.entry[mshr_index].cycle_enqueued;
+                        int cpu_id = MSHR.entry[mshr_index].cpu;
+                        int event_type = (start_cycle < Mosaic_Cache_Monitor.get_last_check_cycle()) ? LPM_ACCESS_END_EXTEND : LPM_ACCESS_END;
+
+                        Mosaic_Cache_Monitor.access_reg(cpu_id, cache_level_idx, current_core_cycle[cpu_id], event_type);
+                    }
+                }
             }
 
             MSHR.remove_queue(&MSHR.entry[mshr_index]);
@@ -221,40 +251,40 @@ void CACHE::handle_fill()
                     cout << current_core_cycle[fill_cpu] << " - " << MSHR.entry[mshr_index].cycle_enqueued << " = " << current_miss_latency << " MSHR index: " << mshr_index << endl;
                 }
                 */
+               
+                // zmz modify
+                int cache_level_idx;
+                switch (cache_type)
+                {
+                    case IS_L1D:
+                        cache_level_idx = LPM_L1;
+                        break;
+                    case IS_L2C:
+                        cache_level_idx = LPM_L2;
+                        break;
+                    case IS_LLC:
+                        cache_level_idx = LPM_L3;
+                        break;
+                    default:
+                        cache_level_idx = -1;
+                        break;
+                }
+                if(cache_level_idx != -1)
+                {
+                    if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+                    {
+                        int start_cycle = MSHR.entry[mshr_index].event_cycle;
+                        int cpu_id = MSHR.entry[mshr_index].cpu;
+                        int event_type = (start_cycle < Mosaic_Cache_Monitor.get_last_check_cycle()) ? LPM_ACCESS_END_EXTEND : LPM_ACCESS_END;
+
+                        Mosaic_Cache_Monitor.access_reg(cpu_id, cache_level_idx, current_core_cycle[cpu_id], event_type);
+                    }
+                }
+
                 total_miss_latency += current_miss_latency;
             }
 
-            // zmz modify
-            int cache_level_idx;
-            switch (cache_type)
-            {
-                case IS_L1D:
-                    cache_level_idx = LPM_L1;
-                    break;
-                case IS_L2C:
-                    cache_level_idx = LPM_L2;
-                    break;
-                case IS_LLC:
-                    cache_level_idx = LPM_L3;
-                    break;
-                default:
-                    cache_level_idx = -1;
-                    break;
-            }
-
-            if(cache_level_idx != -1)
-            {
-                // for test
-                cout<<"access_reg from fill. cache_level_idx: "<<cache_level_idx<<", work_mode="<<Mosaic_Cache_Monitor.get_work_mode()<<endl;
-                if(Mosaic_Cache_Monitor.get_work_mode() != 0)
-                {
-                    int start_cycle = MSHR.entry[mshr_index].cycle_enqueued;
-                    int cycle_count = current_core_cycle[fill_cpu] - MSHR.entry[mshr_index].cycle_enqueued;
-                    int cpu_id = MSHR.entry[mshr_index].cpu;
-                    // access_reg(int core_id, int cache_level, uint64_t start_cycle, uint64_t cycle_count, bool type);
-                    Mosaic_Cache_Monitor.access_reg(cpu_id, cache_level_idx, start_cycle, cycle_count, LPM_MISS_ACCESS);
-                }
-            }
+            
 
             MSHR.remove_queue(&MSHR.entry[mshr_index]);
             MSHR.num_returned--;
@@ -281,6 +311,7 @@ void CACHE::handle_writeback()
         int way = check_hit(&WQ.entry[index]);
 
         // zmz modify (STEP 4)
+        //Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
         if(Mosaic_Cache_Monitor.get_work_mode() != 0)
         {
             int cache_level_idx;
@@ -300,21 +331,49 @@ void CACHE::handle_writeback()
                     break;
             }
                 // for test
-                cout<<"access_reg from writeback. cache_level_idx: "<<cache_level_idx<<endl;
+                //cout<<"access_reg from writeback. cache_level_idx: "<<cache_level_idx<<endl;
             if(cache_level_idx != -1)
             {
-                int core_idx = RQ.entry[index].cpu;
+                int core_idx = WQ.entry[index].cpu;
 
                 Mosaic_Cache_Monitor.access_reg(core_idx, 
                     cache_level_idx, 
                     current_core_cycle[core_idx], 
-                    0, /* Since the latency of all accesses is equal or longer than the hit_latency, here we use the fake input and the mosaic_cache_monitor will justify the latency. */ 
-                    LPM_HIT_ACCESS);
+                    LPM_ACCESS_START);
             }
         }
         
         if (way >= 0) 
         { // writeback hit (or RFO hit for L1D)
+
+            // zmz modify
+            if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+            {
+                int cache_level_idx;
+                switch(cache_type)
+                {
+                    case IS_L1D:
+                        cache_level_idx = LPM_L1;
+                        break;
+                    case IS_L2C:
+                        cache_level_idx = LPM_L2;
+                        break;
+                    case IS_LLC:
+                        cache_level_idx = LPM_L3;
+                        break;
+                    default:
+                        cache_level_idx = -1;
+                        break;
+                }
+                if(cache_level_idx != -1)
+                {
+                    int core_idx = WQ.entry[index].cpu;
+                    int hit_latency = Mosaic_Cache_Monitor.get_hit_latency(cache_level_idx);
+                    Mosaic_Cache_Monitor.access_reg(core_idx,
+                        cache_level_idx, current_core_cycle[core_idx]+hit_latency, LPM_ACCESS_END);
+                }
+            }
+
             if (cache_type == IS_LLC) 
             {
                 llc_update_replacement_state(writeback_cpu, set, way, block[set][way].full_addr, WQ.entry[index].ip, 0, WQ.entry[index].type, 1);
@@ -630,6 +689,7 @@ void CACHE::handle_read()
             int way = check_hit(&RQ.entry[index]);
 
             // zmz modify (STEP 4)
+            //Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
             if(Mosaic_Cache_Monitor.get_work_mode() != 0)
             {
                 int cache_level_idx;
@@ -649,21 +709,52 @@ void CACHE::handle_read()
                         break;
                 }
                 // for test
-                cout<<"access_reg from read. cache_level_idx: "<<cache_level_idx<<endl;
+                //cout<<"access_reg from read. cache_level_idx: "<<cache_level_idx<<endl;
                 if(cache_level_idx != -1)
                 {
                     int core_idx = RQ.entry[index].cpu;
                     Mosaic_Cache_Monitor.access_reg(core_idx, 
                         cache_level_idx, 
                         current_core_cycle[core_idx], 
-                        0, /* Since the latency of all accesses is equal or longer than the hit_latency, here we use the fake input and the mosaic_cache_monitor will justify the latency. */ 
-                        LPM_HIT_ACCESS);
+                        LPM_ACCESS_START);
                 }
             }
             
             
             if (way >= 0) 
             { // read hit
+
+                // zmz modify
+                if(Mosaic_Cache_Monitor.get_work_mode() != 0)
+                {
+                    int cache_level_idx;
+                    switch(cache_type)
+                    {
+                        case IS_L1D:
+                            cache_level_idx = LPM_L1;
+                            break;
+                        case IS_L2C:
+                            cache_level_idx = LPM_L2;
+                            break;
+                        case IS_LLC:
+                            cache_level_idx = LPM_L3;
+                            break;
+                        default:
+                            cache_level_idx = -1;
+                            break;
+                    }
+
+                    if(cache_level_idx != -1)
+                    {
+                        int core_idx = RQ.entry[index].cpu;
+                        int hit_latency = Mosaic_Cache_Monitor.get_hit_latency(cache_level_idx);
+                        Mosaic_Cache_Monitor.access_reg(core_idx,
+                            cache_level_idx,
+                            current_core_cycle[core_idx]+hit_latency,
+                            LPM_ACCESS_END);
+                    }
+                }
+
                 if (cache_type == IS_ITLB) 
                 {
                     RQ.entry[index].instruction_pa = block[set][way].data;
@@ -1210,6 +1301,7 @@ uint32_t CACHE::get_set(uint64_t address)
 uint32_t CACHE::get_way(uint64_t address, uint32_t set)
 {
     // zmz modify (STEP 5)
+    //Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
     int current_way_start_pos=0, current_way_end_pos=NUM_WAY;
     if(Mosaic_Cache_Monitor.get_work_mode() != 0)
     {
@@ -1309,6 +1401,7 @@ int CACHE::check_hit(PACKET *packet)
     }
 
     // zmz modify (STEP 5)
+    //Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
     int current_way_start_pos=0, current_way_end_pos=NUM_WAY;
     if(Mosaic_Cache_Monitor.get_work_mode() != 0)
     {
@@ -1368,6 +1461,7 @@ int CACHE::invalidate_entry(uint64_t inval_addr)
     }
 
     // zmz modify (STEP 5)
+    //Mosaic_Cache Mosaic_Cache_Monitor=Get_Instance();
     int current_way_start_pos=0, current_way_end_pos=NUM_WAY;
     if(Mosaic_Cache_Monitor.get_work_mode() != 0)
     {
